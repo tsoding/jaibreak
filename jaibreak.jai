@@ -23,7 +23,7 @@ BAR_COLOR :: #run unpack_color(0xFF3030FF);
 TARGET_WIDTH :: BAR_LEN;
 TARGET_HEIGHT :: PROJ_SIZE;
 TARGET_PADDING_X :: 20;
-TARGET_PADDING_Y :: TARGET_HEIGHT + 20;
+TARGET_PADDING_Y :: TARGET_PADDING_X;
 TARGET_ROWS :: 10;
 TARGET_COLS :: 10;
 TARGET_GRID_WIDTH :: (TARGET_COLS*TARGET_WIDTH + (TARGET_COLS - 1)*TARGET_PADDING_X);
@@ -43,7 +43,7 @@ init_targets :: () -> [TARGET_ROWS*TARGET_COLS]Target {
         for col: 0..TARGET_COLS-1 {
             using targets[row*TARGET_COLS + col];
             x     = xx (TARGET_GRID_X + (TARGET_WIDTH + TARGET_PADDING_X)*col);
-            y     = xx (TARGET_GRID_Y + TARGET_PADDING_Y*row);
+            y     = xx (TARGET_GRID_Y + (TARGET_HEIGHT + TARGET_PADDING_Y)*row);
             dead  = false;
 
             red   :: #run srgb_to_linear(Vector4.{1, .18, .18, 1});
