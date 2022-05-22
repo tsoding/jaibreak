@@ -46,15 +46,15 @@ init_targets :: () -> [TARGET_ROWS*TARGET_COLS]Target {
             y     = xx (TARGET_GRID_Y + TARGET_PADDING_Y*row);
             dead  = false;
 
-            red   :: Vector4.{1, .18, .18, 1};
-            green :: Vector4.{.18, 1, .18, 1};
-            blue  :: Vector4.{.18, .18, 1, 1};
+            red   :: #run srgb_to_linear(Vector4.{1, .18, .18, 1});
+            green :: #run srgb_to_linear(Vector4.{.18, 1, .18, 1});
+            blue  :: #run srgb_to_linear(Vector4.{.18, .18, 1, 1});
             level :: .5;
             t  := cast(float) row/TARGET_COLS;
             c  := cast(float) (t < level);
             g1 := lerp(red, green, t/level);
             g2 := lerp(green, blue, (t - level)/(1 - level));
-            color = c*g1 + (1 - c)*g2;
+            color = linear_to_srgb(c*g1 + (1 - c)*g2);
         }
     }
     return targets;
