@@ -29,6 +29,8 @@ TARGET_COLS :: 10;
 TARGET_GRID_WIDTH :: (TARGET_COLS*TARGET_WIDTH + (TARGET_COLS - 1)*TARGET_PADDING_X);
 TARGET_GRID_X :: WINDOW_WIDTH/2 - TARGET_GRID_WIDTH/2;
 TARGET_GRID_Y :: 50;
+TEXT_PIXEL_HEIGHT :: WINDOW_HEIGHT / 24;
+TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
 
 Target :: struct {
     x: float32;
@@ -187,16 +189,25 @@ fill_rect :: (using rect: Rect, color: Vector4) {
 }
 
 render :: () {
+    Simp.set_shader_for_color();
     fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
     fill_rect(bar_rect(bar_x), BAR_COLOR);
     for targets_pool if !it.dead fill_rect(target_rect(it), it.color);
 }
 
 main :: () {
+    font := Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, TEXT_PIXEL_HEIGHT);
+    if !font {
+        print("[ERROR] could not load font %\n", TEXT_FONT_FILE_NAME);
+        exit(1);
+    }
+    print("[INFO] loaded font %\n", TEXT_FONT_FILE_NAME);
+
     window := create_window(window_name="Jaibreak", width=WINDOW_WIDTH, height=WINDOW_HEIGHT);
     Simp.set_render_target(window);
 
-    Simp.set_shader_for_color();
+    pause_text_width := Simp.prepare_text(font, "Pause");
+
     last_time := get_time();
     left := false;
     right := false;
@@ -255,6 +266,7 @@ main :: () {
         }
 
         render();
+        if pause Simp.draw_prepared_text(font, WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, .{.9, .9, .9, 1});
 
         Simp.swap_buffers(window);
     }
