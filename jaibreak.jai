@@ -31,6 +31,9 @@ TARGET_GRID_X :: WINDOW_WIDTH/2 - TARGET_GRID_WIDTH/2;
 TARGET_GRID_Y :: 50;
 TEXT_PIXEL_HEIGHT :: WINDOW_HEIGHT / 24;
 TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
+TEXT_COLOR :: Vector4.{.9, .9, .9, 1};
+SCORE_PADDING_LEFT :: 40;
+SCORE_PADDING_TOP :: 30;
 
 Target :: struct {
     x: float32;
@@ -73,8 +76,8 @@ proj_dy: float32 = 1;
 quit := false;
 pause := false;
 started := false;
+score := 0;
 // TODO: death
-// TODO: score
 // TODO: victory
 
 Rect :: struct {
@@ -129,6 +132,11 @@ overlaps :: (a: Rect, b: Rect) -> bool {
     return !(Ra < Lb || Rb < La || Ba < Tb || Bb < Ta);
 }
 
+target_hit :: (target: *Target) {
+    target.dead = true;
+    score += 1;
+}
+
 horz_collision :: (dt: float32) {
     proj_nx := proj_x + proj_dx*PROJ_SPEED*dt;
     if proj_nx < 0 || proj_nx + PROJ_SIZE > WINDOW_WIDTH || overlaps(proj_rect(proj_nx, proj_y), bar_rect(bar_x)) {
@@ -137,7 +145,7 @@ horz_collision :: (dt: float32) {
     }
     for * targets_pool {
         if !it.dead && overlaps(proj_rect(proj_nx, proj_y), target_rect(it)) {
-            it.dead = true;
+            target_hit(it);
             proj_dx *= -1;
             return;
         }
@@ -158,7 +166,7 @@ vert_collision :: (dt: float32) {
     }
     for *targets_pool {
         if !it.dead && overlaps(proj_rect(proj_x, proj_ny), target_rect(it)) {
-            it.dead = true;
+            target_hit(it);
             proj_dy *= -1;
             return;
         }
@@ -206,7 +214,7 @@ main :: () {
     window := create_window(window_name="Jaibreak", width=WINDOW_WIDTH, height=WINDOW_HEIGHT);
     Simp.set_render_target(window);
 
-    pause_text_width := Simp.prepare_text(font, "Pause");
+
 
     last_time := get_time();
     left := false;
@@ -266,8 +274,15 @@ main :: () {
         }
 
         render();
-        if pause Simp.draw_prepared_text(font, WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, .{.9, .9, .9, 1});
+        score_text_width := Simp.prepare_text(font, tprint("Score: %", score));
+        Simp.draw_prepared_text(font, SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - TEXT_PIXEL_HEIGHT, TEXT_COLOR);
+        if pause {
+            pause_text_width := Simp.prepare_text(font, "Pause");
+            Simp.draw_prepared_text(font, WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
+        }
 
         Simp.swap_buffers(window);
+
+        reset_temporary_storage();
     }
 }
