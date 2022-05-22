@@ -7,8 +7,8 @@
 ```console
 $ jai -version
 Version: beta 0.1.024, built on 15 May 2022.
-$ jai main.jai
-$ main
+$ jai jaibreak.jai
+$ jaibreak
 ```
 
 # References
