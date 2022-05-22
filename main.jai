@@ -10,15 +10,15 @@ DT_MAX : float : 0.15;
 DELTA_TIME_SEC : float32 : 1.0/FPS;
 WINDOW_WIDTH :: 800;
 WINDOW_HEIGHT :: 600;
-BACKGROUND_COLOR : u32 : 0xFF181818;
+BACKGROUND_COLOR :: #run unpack_color(0xFF181818);
 PROJ_SIZE: float32 : 25*0.80;
 PROJ_SPEED: float32 : 350;
-PROJ_COLOR : u32 : 0xFFFFFFFF;
+PROJ_COLOR :: #run unpack_color(0xFFFFFFFF);
 BAR_LEN: float32 : 100;
-BAR_THICCNESS: float32 : 100;//PROJ_SIZE;
+BAR_THICCNESS: float32 : PROJ_SIZE;
 BAR_Y: float32 : WINDOW_HEIGHT - PROJ_SIZE - 50;
 BAR_SPEED: float32 : PROJ_SPEED*1.5;
-BAR_COLOR : u32 : 0xFF3030FF;
+BAR_COLOR :: #run unpack_color(0xFF3030FF);
 TARGET_WIDTH :: BAR_LEN;
 TARGET_HEIGHT :: PROJ_SIZE;
 TARGET_PADDING_X :: 20;
@@ -28,7 +28,7 @@ TARGET_COLS :: 5;
 TARGET_GRID_WIDTH :: (TARGET_COLS*TARGET_WIDTH + (TARGET_COLS - 1)*TARGET_PADDING_X);
 TARGET_GRID_X :: WINDOW_WIDTH/2 - TARGET_GRID_WIDTH/2;
 TARGET_GRID_Y :: 50;
-TARGET_COLOR : u32 : 0xFF30FF30;
+TARGET_COLOR :: #run unpack_color(0xFF30FF30);
 
 Target :: struct {
     x: float32;
@@ -96,9 +96,9 @@ proj_rect :: (x: float32, y: float32) -> Rect {
     return result;
 }
 
-bar_rect :: () -> Rect {
+bar_rect :: (x: float32) -> Rect {
     result : Rect = ---;
-    result.x = bar_x;
+    result.x = x;
     result.y = BAR_Y - BAR_THICCNESS/2;
     result.w = BAR_LEN;
     result.h = BAR_THICCNESS;
@@ -117,16 +117,14 @@ overlaps :: (a: Rect, b: Rect) -> bool {
 
 horz_collision :: (dt: float32) {
     proj_nx := proj_x + proj_dx*PROJ_SPEED*dt;
-    if proj_nx < 0 || proj_nx + PROJ_SIZE > WINDOW_WIDTH || overlaps(proj_rect(proj_nx, proj_y), bar_rect()) {
+    if proj_nx < 0 || proj_nx + PROJ_SIZE > WINDOW_WIDTH || overlaps(proj_rect(proj_nx, proj_y), bar_rect(bar_x)) {
         proj_dx *= -1;
-        proj_x = proj_x + proj_dx*PROJ_SPEED*dt;
         return;
     }
     for * targets_pool {
         if !it.dead && overlaps(proj_rect(proj_nx, proj_y), target_rect(it)) {
             it.dead = true;
             proj_dx *= -1;
-            proj_x = proj_x + proj_dx*PROJ_SPEED*dt;
             return;
         }
     }
@@ -137,29 +135,36 @@ vert_collision :: (dt: float32) {
     proj_ny := proj_y + proj_dy*PROJ_SPEED*dt;
     if proj_ny < 0 || proj_ny + PROJ_SIZE > WINDOW_HEIGHT {
         proj_dy *= -1;
-        proj_y = proj_y + proj_dy*PROJ_SPEED*dt;
         return;
     }
-    if overlaps(proj_rect(proj_x, proj_ny), bar_rect()) {
+    if overlaps(proj_rect(proj_x, proj_ny), bar_rect(bar_x)) {
         if bar_dx != 0 proj_dx = bar_dx;
         proj_dy *= -1;
-        proj_y = proj_y + proj_dy*PROJ_SPEED*dt;
         return;
     }
     for *targets_pool {
         if !it.dead && overlaps(proj_rect(proj_x, proj_ny), target_rect(it)) {
             it.dead = true;
             proj_dy *= -1;
-            proj_y = proj_y + proj_dy*PROJ_SPEED*dt;
             return;
         }
     }
     proj_y = proj_ny;
 }
 
+bar_collision :: (dt: float32) {
+    bar_nx := clamp(bar_x + bar_dx*BAR_SPEED*dt, 0, WINDOW_WIDTH - BAR_LEN);
+    if overlaps(proj_rect(proj_x, proj_y), bar_rect(bar_nx)) return;
+    bar_x = bar_nx;
+}
+
 update :: (dt: float32) {
     if !pause && started {
-        bar_x = clamp(bar_x + bar_dx*BAR_SPEED*dt, 2*PROJ_SIZE, WINDOW_WIDTH - BAR_LEN - 2*PROJ_SIZE);
+        if (overlaps(proj_rect(proj_x, proj_y), bar_rect(bar_x))) {
+            proj_y = BAR_Y - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
+            return;
+        }
+        bar_collision(dt);
         horz_collision(dt);
         vert_collision(dt);
     }
@@ -170,9 +175,9 @@ fill_rect :: (using rect: Rect, color: Vector4) {
 }
 
 render :: () {
-    fill_rect(proj_rect(proj_x, proj_y), unpack_color(PROJ_COLOR));
-    fill_rect(bar_rect(), unpack_color(BAR_COLOR));
-    for targets_pool if !it.dead fill_rect(target_rect(it), unpack_color(TARGET_COLOR));
+    fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
+    fill_rect(bar_rect(bar_x), BAR_COLOR);
+    for targets_pool if !it.dead fill_rect(target_rect(it), TARGET_COLOR);
 }
 
 main :: () {
@@ -225,7 +230,7 @@ main :: () {
         update(current_dt);
 
         {
-            using unpack_color(BACKGROUND_COLOR);
+            using BACKGROUND_COLOR;
             Simp.clear_render_target(x, y, z, w);
         }
 
