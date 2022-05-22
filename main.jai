@@ -29,11 +29,11 @@ TARGET_COLS :: 10;
 TARGET_GRID_WIDTH :: (TARGET_COLS*TARGET_WIDTH + (TARGET_COLS - 1)*TARGET_PADDING_X);
 TARGET_GRID_X :: WINDOW_WIDTH/2 - TARGET_GRID_WIDTH/2;
 TARGET_GRID_Y :: 50;
-TARGET_COLOR :: #run unpack_color(0xFF30FF30);
 
 Target :: struct {
     x: float32;
     y: float32;
+    color: Vector4;
     dead: bool;
 }
 
@@ -41,9 +41,20 @@ init_targets :: () -> [TARGET_ROWS*TARGET_COLS]Target {
     targets: [TARGET_ROWS*TARGET_COLS]Target = ---;
     for row: 0..TARGET_ROWS-1 {
         for col: 0..TARGET_COLS-1 {
-            targets[row*TARGET_COLS + col].x = xx (TARGET_GRID_X + (TARGET_WIDTH + TARGET_PADDING_X)*col);
-            targets[row*TARGET_COLS + col].y = xx (TARGET_GRID_Y + TARGET_PADDING_Y*row);
-            targets[row*TARGET_COLS + col].dead = false;
+            using targets[row*TARGET_COLS + col];
+            x     = xx (TARGET_GRID_X + (TARGET_WIDTH + TARGET_PADDING_X)*col);
+            y     = xx (TARGET_GRID_Y + TARGET_PADDING_Y*row);
+            dead  = false;
+
+            red   :: Vector4.{1, .18, .18, 1};
+            green :: Vector4.{.18, 1, .18, 1};
+            blue  :: Vector4.{.18, .18, 1, 1};
+            level :: .5;
+            t  := cast(float) row/TARGET_COLS;
+            c  := cast(float) (t < level);
+            g1 := lerp(red, green, t/level);
+            g2 := lerp(green, blue, (t - level)/(1 - level));
+            color = c*g1 + (1 - c)*g2;
         }
     }
     return targets;
@@ -178,7 +189,7 @@ fill_rect :: (using rect: Rect, color: Vector4) {
 render :: () {
     fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
     fill_rect(bar_rect(bar_x), BAR_COLOR);
-    for targets_pool if !it.dead fill_rect(target_rect(it), TARGET_COLOR);
+    for targets_pool if !it.dead fill_rect(target_rect(it), it.color);
 }
 
 main :: () {
