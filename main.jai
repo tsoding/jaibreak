@@ -205,8 +205,16 @@ main :: () {
                 }
 
                 case .KEYBOARD; if event.key_code == {
-                    case #run get_key_code(#char "a"); #through; case .ARROW_LEFT;  left  = event.key_pressed != 0;
-                    case #run get_key_code(#char "d"); #through; case .ARROW_RIGHT; right = event.key_pressed != 0;
+                    case #run get_key_code(#char "a"); #through;
+                    case .ARROW_LEFT;
+                    left  = event.key_pressed != 0;
+
+                    case #run get_key_code(#char "d"); #through;
+                    case .ARROW_RIGHT;
+                    right = event.key_pressed != 0;
+
+                    case #run get_key_code(#char " ");
+                    if event.key_pressed pause = !pause;
                 }
             }
         }
