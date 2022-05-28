@@ -5,12 +5,13 @@
 #load "params.jai";
 
 PARAMS_FILEPATH :: "params.conf";
+DEBUG :: true;
 
 #run {
     HT.init(*params);
     load_params_from_file(PARAMS_FILEPATH);
 
-    debug := true;
+
 
     w := compiler_create_workspace("JaiBreak");
     if !w {
@@ -22,18 +23,13 @@ PARAMS_FILEPATH :: "params.conf";
     target_options.output_executable_name = "jaibreak";
     set_build_options(target_options, w);
 
-    if !debug {
+    if !DEBUG {
         add_build_string(tprint("DEBUG :: false;"), w);
         for value, name: params {
             if value.tag == {
-                case int;
-                add_build_string(tprint("% :: () -> int { return %; };", name, <<(cast(*int) value.bytes.data)), w);
-
-                case float;
-                add_build_string(tprint("% :: () -> float { return %; };", name, <<(cast(*float) value.bytes.data)), w);
-
-                case;
-                assert(false, "unreachable");
+                case int; add_build_string(tprint("% :: () -> int { return %; };", name, <<(cast(*int) value.bytes.data)), w);
+                case float; add_build_string(tprint("% :: () -> float { return %; };", name, <<(cast(*float) value.bytes.data)), w);
+                case; assert(false, "unreachable");
             }
         }
     } else {
@@ -43,6 +39,7 @@ PARAMS_FILEPATH :: "params.conf";
             if value.tag == {
                 case int;   add_build_string(tprint("% :: () -> int { return get_int_param(\"%\"); };", name, name), w);
                 case float; add_build_string(tprint("% :: () -> float { return get_float_param(\"%\"); };", name, name), w);
+                case; assert(false, "unreachable");
             }
         }
     }

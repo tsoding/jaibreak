@@ -29,6 +29,7 @@ TARGET_GRID_Y :: 50;
 TEXT_PIXEL_HEIGHT :: WINDOW_HEIGHT / 24;
 TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
 TEXT_COLOR :: Vector4.{.9, .9, .9, 1};
+DEBUG_TEXT_COLOR :: #run unpack_color(0xFF3030FF);
 
 Target :: struct {
     x: float32;
@@ -300,6 +301,10 @@ main :: () {
         if pause {
             pause_text_width := Simp.prepare_text(font, "Pause");
             Simp.draw_prepared_text(font, WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
+        }
+        #if DEBUG {
+            debug_text_width := Simp.prepare_text(font, "Debug");
+            Simp.draw_prepared_text(font, WINDOW_WIDTH - DEBUG_PADDING_RIGHT() - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP() - TEXT_PIXEL_HEIGHT, DEBUG_TEXT_COLOR);
         }
 
         Simp.swap_buffers(window);
