@@ -12,19 +12,12 @@ WINDOW_FACTOR :: 100;
 WINDOW_WIDTH :: 16*WINDOW_FACTOR;
 WINDOW_HEIGHT :: 9*WINDOW_FACTOR;
 BACKGROUND_COLOR :: #run unpack_color(0xFF181818);
-PROJ_SPEED: float32 : 350;
 PROJ_COLOR :: #run unpack_color(0xFFFFFFFF);
-BAR_LEN: float32 : 100;
-BAR_PADDING_Y_BOTTOM: float32 : 50;
-BAR_SPEED: float32 : PROJ_SPEED*2.0;
 BAR_COLOR :: #run unpack_color(0xFF3030FF);
-TARGET_WIDTH :: BAR_LEN;
 TARGET_PADDING_X :: 20;
 TARGET_PADDING_Y :: TARGET_PADDING_X;
 TARGET_ROWS :: 10;
 TARGET_COLS :: 10;
-TARGET_GRID_WIDTH :: (TARGET_COLS*TARGET_WIDTH + (TARGET_COLS - 1)*TARGET_PADDING_X);
-TARGET_GRID_X :: WINDOW_WIDTH/2 - TARGET_GRID_WIDTH/2;
 TARGET_GRID_Y :: 50;
 TEXT_PIXEL_HEIGHT :: WINDOW_HEIGHT / 24;
 TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
@@ -39,11 +32,14 @@ Target :: struct {
 }
 
 init_targets :: () -> [TARGET_ROWS*TARGET_COLS]Target {
+    TARGET_GRID_WIDTH := (TARGET_COLS*TARGET_WIDTH() + (TARGET_COLS - 1)*TARGET_PADDING_X);
+    TARGET_GRID_X := WINDOW_WIDTH/2 - TARGET_GRID_WIDTH/2;
+
     targets: [TARGET_ROWS*TARGET_COLS]Target = ---;
     for row: 0..TARGET_ROWS-1 {
         for col: 0..TARGET_COLS-1 {
             using targets[row*TARGET_COLS + col];
-            x     = xx (TARGET_GRID_X + (TARGET_WIDTH + TARGET_PADDING_X)*col);
+            x     = xx (TARGET_GRID_X + (TARGET_WIDTH() + TARGET_PADDING_X)*col);
             y     = xx (TARGET_GRID_Y + (TARGET_HEIGHT() + TARGET_PADDING_Y)*row);
             dead  = false;
 
@@ -78,10 +74,10 @@ score: int;
 
 init_state :: () {
     targets_pool = init_targets();
-    bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
+    bar_x = WINDOW_WIDTH/2 - BAR_LEN()/2;
     bar_dx = 0;
     proj_x = WINDOW_WIDTH/2 - PROJ_SIZE()/2;
-    proj_y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS()/2 - PROJ_SIZE() - 1.0;
+    proj_y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM()) - BAR_THICCNESS()/2 - PROJ_SIZE() - 1.0;
     proj_dx = 1;
     proj_dy = 1;
     quit = false;
@@ -109,7 +105,7 @@ target_rect :: (target: Target) -> Rect {
     result : Rect = ---;
     result.x = target.x;
     result.y = target.y;
-    result.w = TARGET_WIDTH;
+    result.w = TARGET_WIDTH();
     result.h = TARGET_HEIGHT();
     return result;
 }
@@ -126,8 +122,8 @@ proj_rect :: (x: float32, y: float32) -> Rect {
 bar_rect :: (x: float32) -> Rect {
     result : Rect = ---;
     result.x = x;
-    result.y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS()/2;
-    result.w = BAR_LEN;
+    result.y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM()) - BAR_THICCNESS()/2;
+    result.w = BAR_LEN();
     result.h = BAR_THICCNESS();
     return result;
 }
@@ -148,7 +144,7 @@ target_hit :: (target: *Target) {
 }
 
 horz_collision :: (dt: float32) {
-    proj_nx := proj_x + proj_dx*PROJ_SPEED*dt;
+    proj_nx := proj_x + proj_dx*PROJ_SPEED()*dt;
     if proj_nx < 0 || proj_nx + PROJ_SIZE() > WINDOW_WIDTH || overlaps(proj_rect(proj_nx, proj_y), bar_rect(bar_x)) {
         proj_dx *= -1;
         return;
@@ -164,7 +160,7 @@ horz_collision :: (dt: float32) {
 }
 
 vert_collision :: (dt: float32) {
-    proj_ny := proj_y + proj_dy*PROJ_SPEED*dt;
+    proj_ny := proj_y + proj_dy*PROJ_SPEED()*dt;
     if proj_ny < 0 || proj_ny + PROJ_SIZE() > WINDOW_HEIGHT {
         proj_dy *= -1;
         return;
@@ -185,7 +181,7 @@ vert_collision :: (dt: float32) {
 }
 
 bar_collision :: (dt: float32) {
-    bar_nx := clamp(bar_x + bar_dx*BAR_SPEED*dt, 0, WINDOW_WIDTH - BAR_LEN);
+    bar_nx := clamp(bar_x + bar_dx*BAR_SPEED()*dt, 0, WINDOW_WIDTH - BAR_LEN());
     if overlaps(proj_rect(proj_x, proj_y), bar_rect(bar_nx)) return;
     bar_x = bar_nx;
 }
@@ -193,7 +189,7 @@ bar_collision :: (dt: float32) {
 update :: (dt: float32) {
     if !pause && started {
         if (overlaps(proj_rect(proj_x, proj_y), bar_rect(bar_x))) {
-            proj_y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS()/2 - PROJ_SIZE() - 1.0;
+            proj_y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM()) - BAR_THICCNESS()/2 - PROJ_SIZE() - 1.0;
             return;
         }
         bar_collision(dt);
@@ -230,8 +226,6 @@ main :: () {
 
     window := create_window(window_name="Jaibreak", width=WINDOW_WIDTH, height=WINDOW_HEIGHT);
     Simp.set_render_target(window);
-
-
 
     last_time := get_time();
     left := false;
