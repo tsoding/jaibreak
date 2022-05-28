@@ -11,18 +11,19 @@ DT_MAX : float : 0.15;
 WINDOW_FACTOR :: 100;
 WINDOW_WIDTH :: 16*WINDOW_FACTOR;
 WINDOW_HEIGHT :: 9*WINDOW_FACTOR;
+
 BACKGROUND_COLOR :: #run unpack_color(0xFF181818);
 PROJ_COLOR :: #run unpack_color(0xFFFFFFFF);
 BAR_COLOR :: #run unpack_color(0xFF3030FF);
-TARGET_PADDING_X :: 20;
-TARGET_PADDING_Y :: TARGET_PADDING_X;
+DEBUG_TEXT_COLOR :: #run unpack_color(0xFF3030FF);
+TEXT_COLOR :: Vector4.{.9, .9, .9, 1};
+
 TARGET_ROWS :: 10;
 TARGET_COLS :: 10;
 TARGET_GRID_Y :: 50;
 TEXT_PIXEL_HEIGHT :: WINDOW_HEIGHT / 24;
+
 TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
-TEXT_COLOR :: Vector4.{.9, .9, .9, 1};
-DEBUG_TEXT_COLOR :: #run unpack_color(0xFF3030FF);
 
 Target :: struct {
     x: float32;
@@ -32,15 +33,15 @@ Target :: struct {
 }
 
 init_targets :: () -> [TARGET_ROWS*TARGET_COLS]Target {
-    TARGET_GRID_WIDTH := (TARGET_COLS*TARGET_WIDTH() + (TARGET_COLS - 1)*TARGET_PADDING_X);
+    TARGET_GRID_WIDTH := (TARGET_COLS*TARGET_WIDTH() + (TARGET_COLS - 1)*TARGET_PADDING_X());
     TARGET_GRID_X := WINDOW_WIDTH/2 - TARGET_GRID_WIDTH/2;
 
     targets: [TARGET_ROWS*TARGET_COLS]Target = ---;
     for row: 0..TARGET_ROWS-1 {
         for col: 0..TARGET_COLS-1 {
             using targets[row*TARGET_COLS + col];
-            x     = xx (TARGET_GRID_X + (TARGET_WIDTH() + TARGET_PADDING_X)*col);
-            y     = xx (TARGET_GRID_Y + (TARGET_HEIGHT() + TARGET_PADDING_Y)*row);
+            x     = xx (TARGET_GRID_X + (TARGET_WIDTH() + TARGET_PADDING_X())*col);
+            y     = xx (TARGET_GRID_Y + (TARGET_HEIGHT() + TARGET_PADDING_Y())*row);
             dead  = false;
 
             red   :: #run srgb_to_linear(Vector4.{1, .18, .18, 1});
