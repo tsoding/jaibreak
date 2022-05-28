@@ -4,75 +4,8 @@ HT :: #import "Hash_Table";
 for_expansion :: HT.for_expansion;
 TU :: #import "Tagged_Union";
 
-Param :: struct {
-    name: string;
-    value: TU.Tagged_Union(int, float);
-}
-
-params_content: string = ---;
+params_content: string;
 params: HT.Table(string, TU.Tagged_Union(int, float));
-
-parse_param :: (line: string) -> Param, bool {
-    result : Param;
-
-    found_name, name, rest := split_from_left(line, #char ":");
-    if !found_name return .{}, false;
-    name = trim(name);
-    result.name = name;
-
-    found_type, type, value := split_from_left(rest, #char "=");
-    if !found_type return .{}, false;
-    type = trim(type);
-    value = trim(value);
-
-    if type == {
-        case "float"; {
-            x, success, _ := string_to_float(value);
-            if !success return .{}, false;
-            TU.set(*result.value, x);
-        }
-
-        case "int"; {
-            x, success, _ := string_to_int(value);
-            if !success return .{}, false;
-            TU.set(*result.value, x);
-        }
-
-        case; {
-            return .{}, false;
-        }
-    }
-
-    return result, true;
-}
-
-Params_Parser :: struct {
-    content: string;
-    line_number: int;
-}
-
-Params_Result :: enum {
-    OK;
-    EOF;
-    EMPTY;
-    INVALID;
-}
-
-next_param :: (pp: *Params_Parser) -> Param, Params_Result {
-    if pp.content.count == 0 return .{}, .EOF;
-
-    pp.line_number += 1;
-    _, line, rest := split_from_left(pp.content, #char "\n");
-    pp.content = rest;
-
-    line = trim(line);
-    if line.count == 0 return .{}, .EMPTY;
-
-    param, ok := parse_param(line);
-    if !ok return .{}, .INVALID;
-
-    return param, .OK;
-}
 
 load_params_from_file :: (file_path: string) -> bool {
     content, ok := read_entire_file(file_path);
@@ -81,15 +14,60 @@ load_params_from_file :: (file_path: string) -> bool {
     params_content = content;
     HT.table_reset(*params);
 
-    pp : Params_Parser;
-    pp.content = params_content;
-    while true {
-        param, result := next_param(*pp);
-        if result == {
-            case .OK; HT.table_add(*params, param.name, param.value);
-            case .EOF; break;
-            case .INVALID; print("%:%: WARNING: invalid param\n", PARAMS_FILEPATH, pp.line_number);
+    line_number := 0;
+    while content.count > 0 {
+        line_number += 1;
+        _, line, rest_content := split_from_left(content, #char "\n");
+        content = rest_content;
+
+        // TODO: support comments
+
+        line = trim(line);
+        if line.count == 0 continue;
+
+        found_name, name, rest_line := split_from_left(line, #char ":");
+        if !found_name {
+            print("%:%: WARNING: could not find parameter name\n", file_path, line_number);
+            continue;
         }
+        name = trim(name);
+
+
+        found_type, type, value := split_from_left(rest_line, #char "=");
+        if !found_type {
+            print("%:%: WARNING: could not find parameter type\n", file_path, line_number);
+            continue;
+        }
+
+        type = trim(type);
+        value = trim(value);
+        tagged_x : TU.Tagged_Union(int, float);
+        if type == {
+            case "float"; {
+                x, success, _ := string_to_float(value);
+                if !success {
+                    print("%:%: WARNING: could not parse float value\n", file_path, line_number);
+                    continue;
+                }
+                TU.set(*tagged_x, x);
+            }
+
+            case "int"; {
+                x, success, _ := string_to_int(value);
+                if !success {
+                    print("%:%: WARNING: could not parse int value\n", file_path, line_number);
+                    continue;
+                }
+                TU.set(*tagged_x, x);
+            }
+
+            case; {
+                print("%:%: WARNING: unknown type `%`\n", file_path, line_number, type);
+                continue;
+            }
+
+        }
+        HT.table_add(*params, name, tagged_x);
     }
 
     return true;
