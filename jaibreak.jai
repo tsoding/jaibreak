@@ -4,24 +4,21 @@
 #import "Input";
 Simp :: #import "Simp";
 
+PARAMS_FILEPATH :: "params.conf";
+
 // Configuration
-FPS :: 60;
 DT_MAX : float : 0.15;
-DELTA_TIME_SEC : float32 : 1.0/FPS;
 WINDOW_FACTOR :: 100;
 WINDOW_WIDTH :: 16*WINDOW_FACTOR;
 WINDOW_HEIGHT :: 9*WINDOW_FACTOR;
 BACKGROUND_COLOR :: #run unpack_color(0xFF181818);
-PROJ_SIZE: float32 : 25*0.80;
 PROJ_SPEED: float32 : 350;
 PROJ_COLOR :: #run unpack_color(0xFFFFFFFF);
 BAR_LEN: float32 : 100;
-BAR_THICCNESS: float32 : PROJ_SIZE;
-BAR_Y: float32 : WINDOW_HEIGHT - PROJ_SIZE - 50;
+BAR_PADDING_Y_BOTTOM: float32 : 50;
 BAR_SPEED: float32 : PROJ_SPEED*2.0;
 BAR_COLOR :: #run unpack_color(0xFF3030FF);
 TARGET_WIDTH :: BAR_LEN;
-TARGET_HEIGHT :: PROJ_SIZE;
 TARGET_PADDING_X :: 20;
 TARGET_PADDING_Y :: TARGET_PADDING_X;
 TARGET_ROWS :: 10;
@@ -32,8 +29,6 @@ TARGET_GRID_Y :: 50;
 TEXT_PIXEL_HEIGHT :: WINDOW_HEIGHT / 24;
 TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
 TEXT_COLOR :: Vector4.{.9, .9, .9, 1};
-SCORE_PADDING_LEFT :: 40;
-SCORE_PADDING_TOP :: 30;
 
 Target :: struct {
     x: float32;
@@ -48,7 +43,7 @@ init_targets :: () -> [TARGET_ROWS*TARGET_COLS]Target {
         for col: 0..TARGET_COLS-1 {
             using targets[row*TARGET_COLS + col];
             x     = xx (TARGET_GRID_X + (TARGET_WIDTH + TARGET_PADDING_X)*col);
-            y     = xx (TARGET_GRID_Y + (TARGET_HEIGHT + TARGET_PADDING_Y)*row);
+            y     = xx (TARGET_GRID_Y + (TARGET_HEIGHT() + TARGET_PADDING_Y)*row);
             dead  = false;
 
             red   :: #run srgb_to_linear(Vector4.{1, .18, .18, 1});
@@ -66,19 +61,33 @@ init_targets :: () -> [TARGET_ROWS*TARGET_COLS]Target {
 }
 
 // State
-targets_pool := #run init_targets();
-bar_x:   float32 = WINDOW_WIDTH/2 - BAR_LEN/2;
-bar_dx:  float32 = 0;
-proj_x:  float32 = WINDOW_WIDTH/2 - PROJ_SIZE/2;
-proj_y:  float32 = BAR_Y - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
-proj_dx: float32 = 1;
-proj_dy: float32 = 1;
-quit := false;
-pause := false;
-started := false;
-score := 0;
+targets_pool : [TARGET_ROWS*TARGET_COLS]Target;
+bar_x:   float32;
+bar_dx:  float32;
+proj_x:  float32;
+proj_y:  float32;
+proj_dx: float32;
+proj_dy: float32;
+quit: bool;
+pause: bool;
+started: bool;
+score: int;
 // TODO: death
 // TODO: victory
+
+init_state :: () {
+    targets_pool = init_targets();
+    bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
+    bar_dx = 0;
+    proj_x = WINDOW_WIDTH/2 - PROJ_SIZE()/2;
+    proj_y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS()/2 - PROJ_SIZE() - 1.0;
+    proj_dx = 1;
+    proj_dy = 1;
+    quit = false;
+    pause = false;
+    started = false;
+    score = 0;
+}
 
 Rect :: struct {
     x: float32;
@@ -100,7 +109,7 @@ target_rect :: (target: Target) -> Rect {
     result.x = target.x;
     result.y = target.y;
     result.w = TARGET_WIDTH;
-    result.h = TARGET_HEIGHT;
+    result.h = TARGET_HEIGHT();
     return result;
 }
 
@@ -108,17 +117,17 @@ proj_rect :: (x: float32, y: float32) -> Rect {
     result : Rect = ---;
     result.x = x;
     result.y = y;
-    result.w = PROJ_SIZE;
-    result.h = PROJ_SIZE;
+    result.w = PROJ_SIZE();
+    result.h = PROJ_SIZE();
     return result;
 }
 
 bar_rect :: (x: float32) -> Rect {
     result : Rect = ---;
     result.x = x;
-    result.y = BAR_Y - BAR_THICCNESS/2;
+    result.y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS()/2;
     result.w = BAR_LEN;
-    result.h = BAR_THICCNESS;
+    result.h = BAR_THICCNESS();
     return result;
 }
 
@@ -139,7 +148,7 @@ target_hit :: (target: *Target) {
 
 horz_collision :: (dt: float32) {
     proj_nx := proj_x + proj_dx*PROJ_SPEED*dt;
-    if proj_nx < 0 || proj_nx + PROJ_SIZE > WINDOW_WIDTH || overlaps(proj_rect(proj_nx, proj_y), bar_rect(bar_x)) {
+    if proj_nx < 0 || proj_nx + PROJ_SIZE() > WINDOW_WIDTH || overlaps(proj_rect(proj_nx, proj_y), bar_rect(bar_x)) {
         proj_dx *= -1;
         return;
     }
@@ -155,7 +164,7 @@ horz_collision :: (dt: float32) {
 
 vert_collision :: (dt: float32) {
     proj_ny := proj_y + proj_dy*PROJ_SPEED*dt;
-    if proj_ny < 0 || proj_ny + PROJ_SIZE > WINDOW_HEIGHT {
+    if proj_ny < 0 || proj_ny + PROJ_SIZE() > WINDOW_HEIGHT {
         proj_dy *= -1;
         return;
     }
@@ -183,7 +192,7 @@ bar_collision :: (dt: float32) {
 update :: (dt: float32) {
     if !pause && started {
         if (overlaps(proj_rect(proj_x, proj_y), bar_rect(bar_x))) {
-            proj_y = BAR_Y - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
+            proj_y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS()/2 - PROJ_SIZE() - 1.0;
             return;
         }
         bar_collision(dt);
@@ -204,6 +213,13 @@ render :: () {
 }
 
 main :: () {
+    #if DEBUG {
+        HT.init(*params);
+        load_params_from_file(PARAMS_FILEPATH);
+    }
+
+    init_state();
+
     font := Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, TEXT_PIXEL_HEIGHT);
     if !font {
         print("[ERROR] could not load font %\n", TEXT_FONT_FILE_NAME);
@@ -246,6 +262,11 @@ main :: () {
 
                     case #run get_key_code(#char " ");
                     if event.key_pressed pause = !pause;
+
+
+                    case .F5; #if DEBUG {
+                        load_params_from_file(PARAMS_FILEPATH);
+                    }
                 }
             }
         }
@@ -275,7 +296,7 @@ main :: () {
 
         render();
         score_text_width := Simp.prepare_text(font, tprint("Score: %", score));
-        Simp.draw_prepared_text(font, SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - TEXT_PIXEL_HEIGHT, TEXT_COLOR);
+        Simp.draw_prepared_text(font, SCORE_PADDING_LEFT(), WINDOW_HEIGHT - SCORE_PADDING_TOP() - TEXT_PIXEL_HEIGHT, TEXT_COLOR);
         if pause {
             pause_text_width := Simp.prepare_text(font, "Pause");
             Simp.draw_prepared_text(font, WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
