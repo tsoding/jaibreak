@@ -11,8 +11,6 @@ DEBUG :: true;
     HT.init(*params);
     load_params_from_file(PARAMS_FILEPATH);
 
-
-
     w := compiler_create_workspace("JaiBreak");
     if !w {
         print("ERROR: Workspace creation failed.\n");
@@ -37,8 +35,8 @@ DEBUG :: true;
         add_build_string(tprint("DEBUG :: true;"), w);
         for value, name: params {
             if value.tag == {
-                case int;   add_build_string(tprint("% :: () -> int { return get_int_param(\"%\"); };", name, name), w);
-                case float; add_build_string(tprint("% :: () -> float { return get_float_param(\"%\"); };", name, name), w);
+                case int;   add_build_string(tprint("% :: () -> int { return get_param(int, \"%\"); };", name, name), w);
+                case float; add_build_string(tprint("% :: () -> float { return get_param(float, \"%\"); };", name, name), w);
                 case; assert(false, "unreachable");
             }
         }

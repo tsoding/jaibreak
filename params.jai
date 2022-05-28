@@ -95,14 +95,10 @@ load_params_from_file :: (file_path: string) -> bool {
     return true;
 }
 
-get_int_param :: (name: string) -> int {
+get_param :: ($T: Type, name: string) -> T {
+    // TODO: make sure T is within supported types (the ones that are in the Tagged_Union list)
     value, success := HT.table_find(params, name);
-    if success return <<(cast(*int) value.bytes.data);
-    return 0;
-}
-
-get_float_param :: (name: string) -> float {
-    value, success := HT.table_find(params, name);
-    if success return <<(cast(*float) value.bytes.data);
-    return .0;
+    if success return <<(cast(*T) value.bytes.data);
+    default: T;
+    return default;
 }
