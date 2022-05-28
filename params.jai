@@ -97,12 +97,12 @@ load_params_from_file :: (file_path: string) -> bool {
 
 get_int_param :: (name: string) -> int {
     value, success := HT.table_find(params, name);
-    assert(success);
-    return <<(cast(*int) value.bytes.data);
+    if success return <<(cast(*int) value.bytes.data);
+    return 0;
 }
 
 get_float_param :: (name: string) -> float {
     value, success := HT.table_find(params, name);
-    assert(success);
-    return <<(cast(*float) value.bytes.data);
+    if success return <<(cast(*float) value.bytes.data);
+    return .0;
 }
