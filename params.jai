@@ -54,6 +54,7 @@ Params_Parser :: struct {
 Params_Result :: enum {
     OK;
     EOF;
+    EMPTY;
     INVALID;
 }
 
@@ -63,6 +64,9 @@ next_param :: (pp: *Params_Parser) -> Param, Params_Result {
     pp.line_number += 1;
     _, line, rest := split_from_left(pp.content, #char "\n");
     pp.content = rest;
+
+    line = trim(line);
+    if line.count == 0 return .{}, .EMPTY;
 
     param, ok := parse_param(line);
     if !ok return .{}, .INVALID;
