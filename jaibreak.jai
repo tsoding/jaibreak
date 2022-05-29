@@ -40,7 +40,7 @@ Particle_Emitter :: struct {
 }
 
 // State
-particles : [1024]Particle;
+particles : [128]Particle;
 particle_emitters : [128]Particle_Emitter;
 targets_pool : [..]Target;
 bar_x:   float32;
@@ -127,8 +127,8 @@ init_state :: () {
     bar_dx = 0;
     proj_x = WINDOW_WIDTH/2 - PROJ_SIZE()/2;
     proj_y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM()) - BAR_THICCNESS()/2 - PROJ_SIZE() - 1.0;
-    proj_dx = 1;
-    proj_dy = 1;
+    proj_dx = 0;
+    proj_dy = 0;
     quit = false;
     pause = false;
     started = false;
@@ -148,6 +148,15 @@ unpack_color :: (color: u32) -> Vector4 {
     b := ((color >> (2*8)) & 0xFF) / 255.0;
     a := ((color >> (3*8)) & 0xFF) / 255.0;
     return make_vector4(r, g, b, a);
+}
+
+rect :: (x: float32, y: float32, w: float32, h: float32) -> Rect {
+    result : Rect = ---;
+    result.x = x;
+    result.y = y;
+    result.w = w;
+    result.h = h;
+    return result;
 }
 
 target_rect :: (target: Target) -> Rect {
@@ -193,55 +202,76 @@ target_hit :: (target: *Target) {
     score += 1;
 }
 
-horz_collision :: (dt: float32) {
-    proj_nx := proj_x + proj_dx*PROJ_SPEED()*dt;
-    if proj_nx < 0 || proj_nx + PROJ_SIZE() > WINDOW_WIDTH {
-        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, PROJ_COLOR(), PARTICLE_EMITTER_LIFETIME());
-        proj_dx *= -1;
-        return;
-    }
-    if overlaps(proj_rect(proj_nx, proj_y), bar_rect(bar_x)) {
-        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, BAR_COLOR(), PARTICLE_EMITTER_LIFETIME());
-        proj_dx *= -1;
-        return;
-    }
-    for * targets_pool {
-        if !it.dead && overlaps(proj_rect(proj_nx, proj_y), target_rect(it)) {
-            target_hit(it);
-            proj_dx *= -1;
-            return;
-        }
-    }
-    proj_x = proj_nx;
+Collision :: enum s64 {
+    NO :: 0;
+    BORDER;
+    BAR;
+    TARGET;
 }
 
-vert_collision :: (dt: float32) {
-    proj_ny := proj_y + proj_dy*PROJ_SPEED()*dt;
-    if proj_ny < 0 || proj_ny + PROJ_SIZE() > WINDOW_HEIGHT {
-        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, PROJ_COLOR(), PARTICLE_EMITTER_LIFETIME());
-        proj_dy *= -1;
-        return;
+horz_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: float32, h: float32, dt: float32) -> Collision {
+    nx := <<x + <<dx*dt;
+    if nx < 0 || nx + w > WINDOW_WIDTH {
+        <<dx *= -1;
+        return .BORDER;
     }
-    if overlaps(proj_rect(proj_x, proj_ny), bar_rect(bar_x)) {
-        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, BAR_COLOR(), PARTICLE_EMITTER_LIFETIME());
-        if bar_dx != 0 proj_dx = bar_dx;
-        proj_dy *= -1;
-        return;
+    if overlaps(rect(nx, <<y, w, h), bar_rect(bar_x)) {
+        <<dx *= -1;
+        return .BAR;
     }
-    for *targets_pool {
-        if !it.dead && overlaps(proj_rect(proj_x, proj_ny), target_rect(it)) {
-            target_hit(it);
-            proj_dy *= -1;
-            return;
+    for * targets_pool {
+        if !it.dead && overlaps(rect(nx, <<y, w, h), target_rect(it)) {
+            <<dx *= -1;
+            return xx (xx Collision.TARGET + it_index);
         }
     }
-    proj_y = proj_ny;
+    <<x = nx;
+    return .NO;
+}
+
+vert_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: float32, h: float32, dt: float32) -> Collision {
+    ny := <<y + <<dy*dt;
+    if ny < 0 || ny + w > WINDOW_HEIGHT {
+        <<dy *= -1;
+        return .BORDER;
+    }
+    if overlaps(rect(<<x, ny, w, h), bar_rect(bar_x)) {
+        if bar_dx != 0 proj_dx = bar_dx*abs(proj_dx);
+        <<dy *= -1;
+        return .BAR;
+    }
+    for *targets_pool {
+        if !it.dead && overlaps(rect(<<x, ny, w, h), target_rect(it)) {
+            <<dy *= -1;
+            return xx (xx Collision.TARGET + it_index);
+        }
+    }
+    <<y = ny;
+    return .NO;
 }
 
 bar_collision :: (dt: float32) {
     bar_nx := clamp(bar_x + bar_dx*BAR_SPEED()*dt, 0, WINDOW_WIDTH - BAR_LEN());
     if overlaps(proj_rect(proj_x, proj_y), bar_rect(bar_nx)) return;
     bar_x = bar_nx;
+}
+
+handle_proj_collision :: (c: Collision) {
+    if c == {
+        /*
+        case .BORDER;
+        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, PROJ_COLOR(), PARTICLE_EMITTER_LIFETIME());*/
+
+        // TODO: fix Bar redirection mechanics
+        /*
+        case .BAR;
+        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, BAR_COLOR(), PARTICLE_EMITTER_LIFETIME());
+        */
+
+        case; if c >= .TARGET {
+            target_hit(*targets_pool[c - .TARGET]);
+        }
+    }
 }
 
 update :: (dt: float32) {
@@ -251,13 +281,16 @@ update :: (dt: float32) {
             return;
         }
         bar_collision(dt);
-        horz_collision(dt);
-        vert_collision(dt);
+        handle_proj_collision(horz_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE(), PROJ_SIZE(), dt));
+        handle_proj_collision(vert_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE(), PROJ_SIZE(), dt));
 
         for * particles {
-            it.x += it.dx*dt;
-            it.y += it.dy*dt;
-            it.lifetime -= dt;
+            if it.lifetime > 0 {
+                size := it.size*PARTICLE_BASE_SIZE();
+                horz_collision(*it.x, *it.y, *it.dx, *it.dy, size, size, dt);
+                vert_collision(*it.x, *it.y, *it.dx, *it.dy, size, size, dt);
+                it.lifetime -= dt;
+            }
         }
 
         for * particle_emitters particle_emitter_update(it, dt);
@@ -277,8 +310,8 @@ render :: () {
         if it.lifetime > 0 {
             size := it.size*PARTICLE_BASE_SIZE();
             particle_rect : Rect = ---;
-            particle_rect.x = it.x - size/2;
-            particle_rect.y = it.y - size/2;
+            particle_rect.x = it.x;
+            particle_rect.y = it.y;
             particle_rect.w = size;
             particle_rect.h = size;
             color := it.color;
@@ -349,14 +382,16 @@ main :: () {
             bar_dx += -1;
             if !started {
                 started = true;
-                proj_dx = -1;
+                proj_dx = -PROJ_SPEED();
+                proj_dy = -PROJ_SPEED();
             }
         }
         if right {
             bar_dx += 1;
             if !started {
                 started = true;
-                proj_dx = 1;
+                proj_dx = PROJ_SPEED();
+                proj_dy = -PROJ_SPEED();
             }
         }
 
