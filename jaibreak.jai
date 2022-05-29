@@ -2,6 +2,7 @@
 #import "Math";
 #import "Window_Creation";
 #import "Input";
+#import "Random";
 Simp :: #import "Simp";
 
 PARAMS_FILEPATH :: "params.conf";
@@ -20,7 +21,27 @@ Target :: struct {
     dead: bool;
 }
 
+Particle :: struct {
+    x: float32;
+    y: float32;
+    dx: float32;
+    dy: float32;
+    size: float32 = 1.0;
+    lifetime: float32;
+    color: Vector4 = .{.9, 0, 0, 1};
+}
+
+Particle_Emitter :: struct {
+    x: float32;
+    y: float32;
+    color: Vector4;
+    lifetime: float32;
+    period: float32;
+}
+
 // State
+particles : [1024]Particle;
+particle_emitters : [128]Particle_Emitter;
 targets_pool : [..]Target;
 bar_x:   float32;
 bar_dx:  float32;
@@ -34,6 +55,47 @@ started: bool;
 score: int;
 // TODO: death
 // TODO: victory
+
+particle_emitter_emit :: (x: float32, y: float32, color: Vector4, lifetime: float) {
+    for * particle_emitters {
+        if it.lifetime <= 0 {
+            it.x = x;
+            it.y = y;
+            it.color = color;
+            it.lifetime = lifetime;
+            it.period = 0;
+            return;
+        }
+    }
+}
+
+particle_emit :: (x: float32, y: float32, color: Vector4) {
+    for * particles {
+        if it.lifetime <= 0 {
+            it.x = x;
+            it.y = y;
+            angle := random_get_zero_to_one()*2*PI;
+            t := random_get_within_range(0.5, 1.5);
+            it.dx = cos(angle)*PARTICLE_BASE_VELOCITY()*t;
+            it.dy = sin(angle)*PARTICLE_BASE_VELOCITY()*t;
+            it.size = random_get_within_range(0.5, 1.5);
+            it.color = color;
+            it.lifetime = PARTICLE_LIFETIME();
+            return;
+        }
+    }
+}
+
+particle_emitter_update :: (using emitter: *Particle_Emitter, dt: float32) {
+    if lifetime <= 0 return;
+    lifetime -= dt;
+    period -= dt;
+    if period <= 0 {
+        n := cast(int)(abs(period)/PARTICLE_EMITTER_PERIOD());
+        for 0..n particle_emit(x, y, color);
+        period = PARTICLE_EMITTER_PERIOD();
+    }
+}
 
 init_state :: () {
     target_grid_width := (TARGET_COLS()*TARGET_WIDTH() + (TARGET_COLS() - 1)*TARGET_PADDING_X());
@@ -126,13 +188,20 @@ overlaps :: (a: Rect, b: Rect) -> bool {
 }
 
 target_hit :: (target: *Target) {
+    particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, target.color, PARTICLE_EMITTER_LIFETIME());
     target.dead = true;
     score += 1;
 }
 
 horz_collision :: (dt: float32) {
     proj_nx := proj_x + proj_dx*PROJ_SPEED()*dt;
-    if proj_nx < 0 || proj_nx + PROJ_SIZE() > WINDOW_WIDTH || overlaps(proj_rect(proj_nx, proj_y), bar_rect(bar_x)) {
+    if proj_nx < 0 || proj_nx + PROJ_SIZE() > WINDOW_WIDTH {
+        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, PROJ_COLOR(), PARTICLE_EMITTER_LIFETIME());
+        proj_dx *= -1;
+        return;
+    }
+    if overlaps(proj_rect(proj_nx, proj_y), bar_rect(bar_x)) {
+        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, BAR_COLOR(), PARTICLE_EMITTER_LIFETIME());
         proj_dx *= -1;
         return;
     }
@@ -149,10 +218,12 @@ horz_collision :: (dt: float32) {
 vert_collision :: (dt: float32) {
     proj_ny := proj_y + proj_dy*PROJ_SPEED()*dt;
     if proj_ny < 0 || proj_ny + PROJ_SIZE() > WINDOW_HEIGHT {
+        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, PROJ_COLOR(), PARTICLE_EMITTER_LIFETIME());
         proj_dy *= -1;
         return;
     }
     if overlaps(proj_rect(proj_x, proj_ny), bar_rect(bar_x)) {
+        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, BAR_COLOR(), PARTICLE_EMITTER_LIFETIME());
         if bar_dx != 0 proj_dx = bar_dx;
         proj_dy *= -1;
         return;
@@ -182,6 +253,14 @@ update :: (dt: float32) {
         bar_collision(dt);
         horz_collision(dt);
         vert_collision(dt);
+
+        for * particles {
+            it.x += it.dx*dt;
+            it.y += it.dy*dt;
+            it.lifetime -= dt;
+        }
+
+        for * particle_emitters particle_emitter_update(it, dt);
     }
 }
 
@@ -190,10 +269,23 @@ fill_rect :: (using rect: Rect, color: Vector4) {
 }
 
 render :: () {
-    Simp.set_shader_for_color();
+    Simp.set_shader_for_color(enable_blend = true);
     fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR());
     fill_rect(bar_rect(bar_x), BAR_COLOR());
     for targets_pool if !it.dead fill_rect(target_rect(it), it.color);
+    for particles {
+        if it.lifetime > 0 {
+            size := it.size*PARTICLE_BASE_SIZE();
+            particle_rect : Rect = ---;
+            particle_rect.x = it.x - size/2;
+            particle_rect.y = it.y - size/2;
+            particle_rect.w = size;
+            particle_rect.h = size;
+            color := it.color;
+            color.w = it.lifetime/PARTICLE_LIFETIME();
+            fill_rect(particle_rect, color);
+        }
+    }
 }
 
 main :: () {
