@@ -27,6 +27,9 @@ DEBUG :: true;
             if value.tag == {
                 case int; add_build_string(tprint("% :: () -> int { return %; };", name, <<(cast(*int) value.bytes.data)), w);
                 case float; add_build_string(tprint("% :: () -> float { return %; };", name, <<(cast(*float) value.bytes.data)), w);
+                // TODO: maybe the printer function (or whatever it is called in Jai, I don't actually know)
+                // of Vector4 should put that dot in front of the literal?
+                case Vector4; add_build_string(tprint("% :: () -> Vector4 { return .%; };", name, <<(cast(*Vector4) value.bytes.data)), w);
                 case; assert(false, "unreachable");
             }
         }
@@ -37,6 +40,7 @@ DEBUG :: true;
             if value.tag == {
                 case int;   add_build_string(tprint("% :: () -> int { return get_param(int, \"%\"); };", name, name), w);
                 case float; add_build_string(tprint("% :: () -> float { return get_param(float, \"%\"); };", name, name), w);
+                case Vector4; add_build_string(tprint("% :: () -> Vector4 { return get_param(Vector4, \"%\"); };", name, name), w);
                 case; assert(false, "unreachable");
             }
         }
