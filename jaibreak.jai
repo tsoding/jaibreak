@@ -7,7 +7,6 @@ Simp :: #import "Simp";
 PARAMS_FILEPATH :: "params.conf";
 
 // Configuration
-DT_MAX : float : 0.15;
 WINDOW_FACTOR :: 100;
 WINDOW_WIDTH :: 16*WINDOW_FACTOR;
 WINDOW_HEIGHT :: 9*WINDOW_FACTOR;
@@ -222,7 +221,6 @@ main :: () {
         now := get_time();
         delta : float64 = now - last_time;
         current_dt := cast(float) delta;
-        if current_dt > DT_MAX current_dt = DT_MAX;
         last_time = now;
 
         update_window_events();
