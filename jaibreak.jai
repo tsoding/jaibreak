@@ -76,11 +76,11 @@ particle_emit :: (x: float32, y: float32, color: Vector4) {
             it.y = y;
             angle := random_get_zero_to_one()*2*PI;
             t := random_get_within_range(0.5, 1.5);
-            it.dx = cos(angle)*PARTICLE_BASE_VELOCITY()*t;
-            it.dy = sin(angle)*PARTICLE_BASE_VELOCITY()*t;
+            it.dx = cos(angle)*PARTICLE_BASE_VELOCITY*t;
+            it.dy = sin(angle)*PARTICLE_BASE_VELOCITY*t;
             it.size = random_get_within_range(0.5, 1.5);
             it.color = color;
-            it.lifetime = PARTICLE_LIFETIME();
+            it.lifetime = PARTICLE_LIFETIME;
             return;
         }
     }
@@ -91,29 +91,29 @@ particle_emitter_update :: (using emitter: *Particle_Emitter, dt: float32) {
     lifetime -= dt;
     period -= dt;
     if period <= 0 {
-        n := cast(int)(abs(period)/PARTICLE_EMITTER_PERIOD());
+        n := cast(int)(abs(period)/PARTICLE_EMITTER_PERIOD);
         for 0..n particle_emit(x, y, color);
-        period = PARTICLE_EMITTER_PERIOD();
+        period = PARTICLE_EMITTER_PERIOD;
     }
 }
 
 init_state :: () {
-    target_grid_width := (TARGET_COLS()*TARGET_WIDTH() + (TARGET_COLS() - 1)*TARGET_PADDING_X());
+    target_grid_width := (TARGET_COLS*TARGET_WIDTH + (TARGET_COLS - 1)*TARGET_PADDING_X);
     target_grid_x := WINDOW_WIDTH/2 - target_grid_width/2;
 
     array_reset_keeping_memory(*targets_pool);
-    for row: 0..TARGET_ROWS()-1 {
-        for col: 0..TARGET_COLS()-1 {
+    for row: 0..TARGET_ROWS-1 {
+        for col: 0..TARGET_COLS-1 {
             target: Target = ---;
-            target.x     = xx (target_grid_x + (TARGET_WIDTH() + TARGET_PADDING_X())*col);
-            target.y     = xx (TARGET_GRID_Y() + (TARGET_HEIGHT() + TARGET_PADDING_Y())*row);
+            target.x     = xx (target_grid_x + (TARGET_WIDTH + TARGET_PADDING_X)*col);
+            target.y     = xx (TARGET_GRID_Y + (TARGET_HEIGHT + TARGET_PADDING_Y)*row);
             target.dead  = false;
 
             red   := srgb_to_linear(Vector4.{1, .18, .18, 1});
             green := srgb_to_linear(Vector4.{.18, 1, .18, 1});
             blue  := srgb_to_linear(Vector4.{.18, .18, 1, 1});
             level := .5;
-            t     := cast(float) row/TARGET_COLS();
+            t     := cast(float) row/TARGET_COLS;
             c     := cast(float) (t < level);
             g1    := lerp(red, green, t/level);
             g2    := lerp(green, blue, (t - level)/(1 - level));
@@ -123,10 +123,10 @@ init_state :: () {
         }
     }
 
-    bar_x = WINDOW_WIDTH/2 - BAR_LEN()/2;
+    bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
     bar_dx = 0;
-    proj_x = WINDOW_WIDTH/2 - PROJ_SIZE()/2;
-    proj_y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM()) - BAR_THICCNESS()/2 - PROJ_SIZE() - 1.0;
+    proj_x = WINDOW_WIDTH/2 - PROJ_SIZE/2;
+    proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
     proj_dx = 0;
     proj_dy = 0;
     quit = false;
@@ -163,8 +163,8 @@ target_rect :: (target: Target) -> Rect {
     result : Rect = ---;
     result.x = target.x;
     result.y = target.y;
-    result.w = TARGET_WIDTH();
-    result.h = TARGET_HEIGHT();
+    result.w = TARGET_WIDTH;
+    result.h = TARGET_HEIGHT;
     return result;
 }
 
@@ -172,17 +172,17 @@ proj_rect :: (x: float32, y: float32) -> Rect {
     result : Rect = ---;
     result.x = x;
     result.y = y;
-    result.w = PROJ_SIZE();
-    result.h = PROJ_SIZE();
+    result.w = PROJ_SIZE;
+    result.h = PROJ_SIZE;
     return result;
 }
 
 bar_rect :: (x: float32) -> Rect {
     result : Rect = ---;
     result.x = x;
-    result.y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM()) - BAR_THICCNESS()/2;
-    result.w = BAR_LEN();
-    result.h = BAR_THICCNESS();
+    result.y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2;
+    result.w = BAR_LEN;
+    result.h = BAR_THICCNESS;
     return result;
 }
 
@@ -197,7 +197,7 @@ overlaps :: (a: Rect, b: Rect) -> bool {
 }
 
 target_hit :: (target: *Target) {
-    particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, target.color, PARTICLE_EMITTER_LIFETIME());
+    particle_emitter_emit(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, target.color, PARTICLE_EMITTER_LIFETIME);
     target.dead = true;
     score += 1;
 }
@@ -251,7 +251,7 @@ vert_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: floa
 }
 
 bar_collision :: (dt: float32, obstacle: Rect) {
-    bar_nx := clamp(bar_x + bar_dx*BAR_SPEED()*dt, 0, WINDOW_WIDTH - BAR_LEN());
+    bar_nx := clamp(bar_x + bar_dx*BAR_SPEED*dt, 0, WINDOW_WIDTH - BAR_LEN);
     if overlaps(obstacle, bar_rect(bar_nx)) return;
     bar_x = bar_nx;
 }
@@ -259,10 +259,10 @@ bar_collision :: (dt: float32, obstacle: Rect) {
 handle_proj_collision :: (c: Collision) {
     if c == {
         case .BORDER;
-        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, PROJ_COLOR(), PARTICLE_EMITTER_LIFETIME());
+        particle_emitter_emit(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, PROJ_COLOR, PARTICLE_EMITTER_LIFETIME);
 
         case .BAR;
-        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, BAR_COLOR(), PARTICLE_EMITTER_LIFETIME());
+        particle_emitter_emit(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_EMITTER_LIFETIME);
 
         case; if c >= .TARGET {
             target_hit(*targets_pool[c - .TARGET]);
@@ -273,16 +273,16 @@ handle_proj_collision :: (c: Collision) {
 update :: (dt: float32) {
     if !pause && started {
         if (overlaps(proj_rect(proj_x, proj_y), bar_rect(bar_x))) {
-            proj_y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM()) - BAR_THICCNESS()/2 - PROJ_SIZE() - 1.0;
+            proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
             return;
         }
         bar_collision(dt, proj_rect(proj_x, proj_y));
-        handle_proj_collision(horz_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE(), PROJ_SIZE(), dt));
-        handle_proj_collision(vert_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE(), PROJ_SIZE(), dt));
+        handle_proj_collision(horz_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
+        handle_proj_collision(vert_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
 
         for * particles {
             if it.lifetime > 0 {
-                size := it.size*PARTICLE_BASE_SIZE();
+                size := it.size*PARTICLE_BASE_SIZE;
                 horz_collision(*it.x, *it.y, *it.dx, *it.dy, size, size, dt);
                 vert_collision(*it.x, *it.y, *it.dx, *it.dy, size, size, dt);
                 it.lifetime -= dt;
@@ -299,19 +299,19 @@ fill_rect :: (using rect: Rect, color: Vector4) {
 
 render :: () {
     Simp.set_shader_for_color(enable_blend = true);
-    fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR());
-    fill_rect(bar_rect(bar_x), BAR_COLOR());
+    fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
+    fill_rect(bar_rect(bar_x), BAR_COLOR);
     for targets_pool if !it.dead fill_rect(target_rect(it), it.color);
     for particles {
         if it.lifetime > 0 {
-            size := it.size*PARTICLE_BASE_SIZE();
+            size := it.size*PARTICLE_BASE_SIZE;
             particle_rect : Rect = ---;
             particle_rect.x = it.x;
             particle_rect.y = it.y;
             particle_rect.w = size;
             particle_rect.h = size;
             color := it.color;
-            color.w = it.lifetime/PARTICLE_LIFETIME();
+            color.w = it.lifetime/PARTICLE_LIFETIME;
             fill_rect(particle_rect, color);
         }
     }
@@ -321,6 +321,7 @@ main :: () {
     #if DEBUG {
         HT.init(*params);
         load_params_from_file(PARAMS_FILEPATH);
+        sync_param_vars();
     }
 
     init_state();
@@ -368,6 +369,7 @@ main :: () {
 
                     case .F5; #if DEBUG {
                         load_params_from_file(PARAMS_FILEPATH);
+                        sync_param_vars();
                     }
                 }
             }
@@ -378,36 +380,36 @@ main :: () {
             bar_dx += -1;
             if !started {
                 started = true;
-                proj_dx = -PROJ_SPEED();
-                proj_dy = -PROJ_SPEED();
+                proj_dx = -PROJ_SPEED;
+                proj_dy = -PROJ_SPEED;
             }
         }
         if right {
             bar_dx += 1;
             if !started {
                 started = true;
-                proj_dx = PROJ_SPEED();
-                proj_dy = -PROJ_SPEED();
+                proj_dx = PROJ_SPEED;
+                proj_dy = -PROJ_SPEED;
             }
         }
 
         update(current_dt);
 
         {
-            using BACKGROUND_COLOR();
+            using BACKGROUND_COLOR;
             Simp.clear_render_target(x, y, z, w);
         }
 
         render();
         score_text_width := Simp.prepare_text(font, tprint("Score: %", score));
-        Simp.draw_prepared_text(font, SCORE_PADDING_LEFT(), WINDOW_HEIGHT - SCORE_PADDING_TOP() - TEXT_PIXEL_HEIGHT, TEXT_COLOR());
+        Simp.draw_prepared_text(font, SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - TEXT_PIXEL_HEIGHT, TEXT_COLOR);
         if pause {
             pause_text_width := Simp.prepare_text(font, "Pause");
-            Simp.draw_prepared_text(font, WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR());
+            Simp.draw_prepared_text(font, WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
         }
         #if DEBUG {
             debug_text_width := Simp.prepare_text(font, "Debug");
-            Simp.draw_prepared_text(font, WINDOW_WIDTH - DEBUG_PADDING_RIGHT() - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP() - TEXT_PIXEL_HEIGHT, DEBUG_TEXT_COLOR());
+            Simp.draw_prepared_text(font, WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP - TEXT_PIXEL_HEIGHT, DEBUG_TEXT_COLOR);
         }
 
         Simp.swap_buffers(window);
