@@ -2,9 +2,11 @@
 #import "File";
 #import "String";
 #import "Compiler";
-#load "params.jai";
+#load "params_loader.jai";
 
-PARAMS_FILEPATH :: "params.conf";
+PARAMS_CONF_FILEPATH :: "params.conf";
+PARAMS_DYNAMIC_FILEPATH :: "gen_params_dynamic.jai";
+PARAMS_STATIC_FILEPATH :: "gen_params_static.jai";
 
 build_release :: () {
     w := compiler_create_workspace("JaiBreak Release");
@@ -18,17 +20,25 @@ build_release :: () {
     set_build_options(target_options, w);
 
     add_build_string(tprint("DEBUG :: false;"), w);
+
+    file, success := file_open(PARAMS_STATIC_FILEPATH, for_writing=true);
+    if !success {
+        print("Could not open file % for writing.\n", PARAMS_STATIC_FILEPATH);
+        return;
+    }
     for value, name: params {
         if value.tag == {
-            case int; add_build_string(tprint("% : int : %;", name, <<(cast(*int) value.bytes.data)), w);
-            case float; add_build_string(tprint("% : float : %;", name, <<(cast(*float) value.bytes.data)), w);
+            case int; file_write(*file, tprint("% : int : %;\n", name, <<(cast(*int) value.bytes.data)));
+            case float; file_write(*file, tprint("% : float : %;\n", name, <<(cast(*float) value.bytes.data)));
             // TODO: maybe the printer function (or whatever it is called in Jai, I don't actually know)
             // of Vector4 should put that dot in front of the literal?
-            case Vector4; add_build_string(tprint("% : Vector4 : .%;", name, <<(cast(*Vector4) value.bytes.data)), w);
+            case Vector4; file_write(*file, tprint("% : Vector4 : .%;\n", name, <<(cast(*Vector4) value.bytes.data)));
             case; assert(false, "unreachable");
         }
     }
+    file_close(*file);
 
+    add_build_file(PARAMS_STATIC_FILEPATH, w);
     add_build_file("./jaibreak.jai", w);
 }
 
@@ -44,15 +54,13 @@ build_debug :: () {
     set_build_options(target_options, w);
 
     add_build_string(tprint("DEBUG :: true;"), w);
+    add_build_file("params_loader.jai", w);
 
-    file, success := file_open("sync_params.jai", for_writing=true);
+    file, success := file_open(PARAMS_DYNAMIC_FILEPATH, for_writing=true);
     if !success {
-        print("Could not open file sync_params.jai for writing.\n");
+        print("Could not open file % for writing.\n", PARAMS_DYNAMIC_FILEPATH);
         return;
     }
-    defer(file_close(*file));
-
-    file_write(*file, "#load \"params.jai\";\n");
 
     for value, name: params {
         if value.tag == {
@@ -64,6 +72,7 @@ build_debug :: () {
     }
 
     file_write(*file, "sync_param_vars :: () {\n");
+    file_write(*file, tprint("    if !load_params_from_file(\"%\") return;\n", PARAMS_CONF_FILEPATH));
     for value, name: params {
         if value.tag == {
             case int;     file_write(*file, tprint("    % = get_param(int, \"%\");\n", name, name));
@@ -73,13 +82,17 @@ build_debug :: () {
         }
     }
     file_write(*file, "}\n");
-    add_build_file("./sync_params.jai", w);
+    file_close(*file);
+
+    add_build_file(PARAMS_DYNAMIC_FILEPATH, w);
     add_build_file("./jaibreak.jai", w);
 }
 
 #run {
     HT.init(*params);
-    load_params_from_file(PARAMS_FILEPATH);
+    if !load_params_from_file(PARAMS_CONF_FILEPATH) {
+        exit(1);
+    }
 
     build_release();
     build_debug();

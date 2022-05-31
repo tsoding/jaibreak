@@ -40,7 +40,10 @@ parse_hex_color :: (hex: string) -> Vector4, bool {
 
 load_params_from_file :: (file_path: string) -> bool {
     content, ok := read_entire_file(file_path);
-    if !ok return false;
+    if !ok {
+        print("Error while opening parameters file % for reading\n", file_path);
+        return false;
+    }
     free(params_content.data);
     params_content = content;
     HT.table_reset(*params);
@@ -58,15 +61,14 @@ load_params_from_file :: (file_path: string) -> bool {
 
         found_name, name, rest_line := split_from_left(line, #char ":");
         if !found_name {
-            print("%:%: WARNING: could not find parameter name\n", file_path, line_number);
+            print("%:%: could not find parameter name\n", file_path, line_number);
             continue;
         }
         name = trim(name);
 
-
         found_type, type, value := split_from_left(rest_line, #char "=");
         if !found_type {
-            print("%:%: WARNING: could not find parameter type\n", file_path, line_number);
+            print("%:%: could not find parameter type\n", file_path, line_number);
             continue;
         }
 
@@ -78,7 +80,7 @@ load_params_from_file :: (file_path: string) -> bool {
             case "float"; {
                 x, success, _ := string_to_float(value);
                 if !success {
-                    print("%:%: WARNING: could not parse float value\n", file_path, line_number);
+                    print("%:%: could not parse float value\n", file_path, line_number);
                     continue;
                 }
                 TU.set(*tagged_x, x);
@@ -87,7 +89,7 @@ load_params_from_file :: (file_path: string) -> bool {
             case "int"; {
                 x, success, _ := string_to_int(value);
                 if !success {
-                    print("%:%: WARNING: could not parse int value\n", file_path, line_number);
+                    print("%:%: could not parse int value\n", file_path, line_number);
                     continue;
                 }
                 TU.set(*tagged_x, x);
@@ -96,14 +98,14 @@ load_params_from_file :: (file_path: string) -> bool {
             case "color"; {
                 color, success := parse_hex_color(value);
                 if !success {
-                    print("%:%: WARNING: could not parse color value\n", file_path, line_number);
+                    print("%:%: could not parse color value\n", file_path, line_number);
                     continue;
                 }
                 TU.set(*tagged_x, color);
             }
 
             case; {
-                print("%:%: WARNING: unknown type `%`\n", file_path, line_number, type);
+                print("%:%: unknown type `%`\n", file_path, line_number, type);
                 continue;
             }
 

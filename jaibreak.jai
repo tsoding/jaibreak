@@ -5,8 +5,6 @@
 #import "Random";
 Simp :: #import "Simp";
 
-PARAMS_FILEPATH :: "params.conf";
-
 // Configuration
 WINDOW_FACTOR :: 100;
 WINDOW_WIDTH :: 16*WINDOW_FACTOR;
@@ -319,8 +317,8 @@ render :: () {
 
 main :: () {
     #if DEBUG {
+        // TODO: hide the params hash table initialization somehow
         HT.init(*params);
-        load_params_from_file(PARAMS_FILEPATH);
         sync_param_vars();
     }
 
@@ -368,8 +366,7 @@ main :: () {
 
 
                     case .F5; #if DEBUG {
-                        load_params_from_file(PARAMS_FILEPATH);
-                        sync_param_vars();
+                        if event.key_pressed then sync_param_vars();
                     }
                 }
             }
