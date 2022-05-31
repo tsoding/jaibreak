@@ -75,7 +75,7 @@ load_params_from_file :: (file_path: string) -> bool {
 
         type = trim(type);
         value = trim(value);
-        // TODO: make the problem fail at compile time when you add a new type to params
+        // TODO: make the program fail at compile time when you add a new type to params
         tagged_x : TU.Tagged_Union(int, float, Vector4);
         if type == {
             case "float"; {
