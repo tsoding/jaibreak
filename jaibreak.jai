@@ -236,7 +236,7 @@ vert_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: floa
         return .BORDER;
     }
     if overlaps(rect(<<x, ny, w, h), bar_rect(bar_x)) {
-        if bar_dx != 0 proj_dx = bar_dx*abs(proj_dx);
+        if bar_dx != 0 then <<dx = bar_dx*abs(<<dx);
         <<dy *= -1;
         return .BAR;
     }
@@ -250,23 +250,19 @@ vert_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: floa
     return .NO;
 }
 
-bar_collision :: (dt: float32) {
+bar_collision :: (dt: float32, obstacle: Rect) {
     bar_nx := clamp(bar_x + bar_dx*BAR_SPEED()*dt, 0, WINDOW_WIDTH - BAR_LEN());
-    if overlaps(proj_rect(proj_x, proj_y), bar_rect(bar_nx)) return;
+    if overlaps(obstacle, bar_rect(bar_nx)) return;
     bar_x = bar_nx;
 }
 
 handle_proj_collision :: (c: Collision) {
     if c == {
-        /*
         case .BORDER;
-        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, PROJ_COLOR(), PARTICLE_EMITTER_LIFETIME());*/
+        particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, PROJ_COLOR(), PARTICLE_EMITTER_LIFETIME());
 
-        // TODO: fix Bar redirection mechanics
-        /*
         case .BAR;
         particle_emitter_emit(proj_x + PROJ_SIZE()/2, proj_y + PROJ_SIZE()/2, BAR_COLOR(), PARTICLE_EMITTER_LIFETIME());
-        */
 
         case; if c >= .TARGET {
             target_hit(*targets_pool[c - .TARGET]);
@@ -280,7 +276,7 @@ update :: (dt: float32) {
             proj_y = (WINDOW_HEIGHT - PROJ_SIZE() - BAR_PADDING_Y_BOTTOM()) - BAR_THICCNESS()/2 - PROJ_SIZE() - 1.0;
             return;
         }
-        bar_collision(dt);
+        bar_collision(dt, proj_rect(proj_x, proj_y));
         handle_proj_collision(horz_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE(), PROJ_SIZE(), dt));
         handle_proj_collision(vert_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE(), PROJ_SIZE(), dt));
 
