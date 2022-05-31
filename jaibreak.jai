@@ -255,9 +255,6 @@ bar_collision :: (dt: float32, obstacle: Rect) {
 
 handle_proj_collision :: (c: Collision) {
     if c == {
-        case .BORDER;
-        particle_emitter_emit(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, PROJ_COLOR, PARTICLE_EMITTER_LIFETIME);
-
         case .BAR;
         particle_emitter_emit(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_EMITTER_LIFETIME);
 
