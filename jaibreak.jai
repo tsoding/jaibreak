@@ -10,7 +10,6 @@ WINDOW_FACTOR :: 100;
 WINDOW_WIDTH :: 16*WINDOW_FACTOR;
 WINDOW_HEIGHT :: 9*WINDOW_FACTOR;
 TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
-TEXT_PIXEL_HEIGHT :: WINDOW_HEIGHT / 24;
 
 Target :: struct {
     x: float32;
@@ -318,7 +317,7 @@ render :: () {
 main :: () {
     init_state();
 
-    font := Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, TEXT_PIXEL_HEIGHT);
+    font := Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
     if !font {
         print("[ERROR] could not load font %\n", TEXT_FONT_FILE_NAME);
         exit(1);
@@ -360,7 +359,11 @@ main :: () {
 
 
                     case .F5; #if DEBUG {
-                        if event.key_pressed then sync_param_vars();
+                        if event.key_pressed {
+                            sync_param_vars();
+                            Simp.release_font(font);
+                            font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
+                        }
                     }
                 }
             }
@@ -393,14 +396,14 @@ main :: () {
 
         render();
         score_text_width := Simp.prepare_text(font, tprint("Score: %", score));
-        Simp.draw_prepared_text(font, SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - TEXT_PIXEL_HEIGHT, TEXT_COLOR);
+        Simp.draw_prepared_text(font, SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
         if pause {
             pause_text_width := Simp.prepare_text(font, "Pause");
             Simp.draw_prepared_text(font, WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
         }
         #if DEBUG {
             debug_text_width := Simp.prepare_text(font, "Debug");
-            Simp.draw_prepared_text(font, WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP - TEXT_PIXEL_HEIGHT, DEBUG_TEXT_COLOR);
+            Simp.draw_prepared_text(font, WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), DEBUG_TEXT_COLOR);
         }
 
         Simp.swap_buffers(window);
