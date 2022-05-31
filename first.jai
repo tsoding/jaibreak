@@ -26,6 +26,8 @@ build_release :: () {
         print("Could not open file % for writing.\n", PARAMS_STATIC_FILEPATH);
         return;
     }
+    file_write(*file, tprint("// Generated from %\n", PARAMS_CONF_FILEPATH));
+
     for value, name: params {
         if value.tag == {
             case int; file_write(*file, tprint("% : int : %;\n", name, <<(cast(*int) value.bytes.data)));
@@ -62,11 +64,12 @@ build_debug :: () {
         return;
     }
 
+    file_write(*file, tprint("// Generated from %\n", PARAMS_CONF_FILEPATH));
     for value, name: params {
         if value.tag == {
-            case int;     file_write(*file, tprint("% : int;\n", name));
-            case float;   file_write(*file, tprint("% : float;\n", name));
-            case Vector4; file_write(*file, tprint("% : Vector4;\n", name));
+            case int;     file_write(*file, tprint("% : int = %;\n", name, <<(cast(*int) value.bytes.data)));
+            case float;   file_write(*file, tprint("% : float = %;\n", name, <<(cast(*float) value.bytes.data)));
+            case Vector4; file_write(*file, tprint("% : Vector4 = .%;\n", name, <<(cast(*Vector4) value.bytes.data)));
             case; assert(false, "unreachable");
         }
     }
@@ -89,7 +92,6 @@ build_debug :: () {
 }
 
 #run {
-    HT.init(*params);
     if !load_params_from_file(PARAMS_CONF_FILEPATH) {
         exit(1);
     }

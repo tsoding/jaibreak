@@ -316,12 +316,6 @@ render :: () {
 }
 
 main :: () {
-    #if DEBUG {
-        // TODO: hide the params hash table initialization somehow
-        HT.init(*params);
-        sync_param_vars();
-    }
-
     init_state();
 
     font := Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, TEXT_PIXEL_HEIGHT);

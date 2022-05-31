@@ -6,6 +6,7 @@ HT :: #import "Hash_Table";
 for_expansion :: HT.for_expansion;
 TU :: #import "Tagged_Union";
 
+// TODO: get rid of global data in params_loader
 params_content: string;
 params: HT.Table(string, TU.Tagged_Union(int, float, Vector4));
 
