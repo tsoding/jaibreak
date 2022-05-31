@@ -1,2 +1,3 @@
-jaibreak
+jaibreak-*
 .build
+gen_*.jai
