@@ -110,14 +110,6 @@ Rect :: struct {
     h: float32;
 }
 
-unpack_color :: (color: u32) -> Vector4 {
-    r := ((color >> (0*8)) & 0xFF) / 255.0;
-    g := ((color >> (1*8)) & 0xFF) / 255.0;
-    b := ((color >> (2*8)) & 0xFF) / 255.0;
-    a := ((color >> (3*8)) & 0xFF) / 255.0;
-    return make_vector4(r, g, b, a);
-}
-
 rect :: (x: float32, y: float32, w: float32, h: float32) -> Rect {
     result : Rect = ---;
     result.x = x;
@@ -165,23 +157,30 @@ overlaps :: (a: Rect, b: Rect) -> bool {
 }
 
 target_hit :: (target: *Target) {
-    particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, target.color, PARTICLE_BURST_COUNT);
+    particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, target.color, PARTICLE_BURST_HIT_COUNT);
     target.dead = true;
     score += 1;
 }
 
 Collision :: enum s64 {
     NO :: 0;
-    BORDER;
+    BORDER_LEFT;
+    BORDER_RIGHT;
+    BORDER_TOP;
+    BORDER_BOTTOM;
     BAR;
     TARGET;
 }
 
 horz_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: float32, h: float32, dt: float32) -> Collision {
     nx := <<x + <<dx*dt;
-    if nx < 0 || nx + w > WINDOW_WIDTH {
+    if nx < 0 {
         <<dx *= -1;
-        return .BORDER;
+        return .BORDER_LEFT;
+    }
+    if nx + w > WINDOW_WIDTH {
+        <<dx *= -1;
+        return .BORDER_RIGHT;
     }
     if overlaps(rect(nx, <<y, w, h), bar_rect(bar_x)) {
         <<dx *= -1;
@@ -199,9 +198,13 @@ horz_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: floa
 
 vert_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: float32, h: float32, dt: float32) -> Collision {
     ny := <<y + <<dy*dt;
-    if ny < 0 || ny + w > WINDOW_HEIGHT {
+    if ny < 0 {
         <<dy *= -1;
-        return .BORDER;
+        return .BORDER_TOP;
+    }
+    if ny + w > WINDOW_HEIGHT {
+        <<dy *= -1;
+        return .BORDER_BOTTOM;
     }
     if overlaps(rect(<<x, ny, w, h), bar_rect(bar_x)) {
         if bar_dx != 0 then <<dx = bar_dx*abs(<<dx);
@@ -226,10 +229,13 @@ bar_collision :: (dt: float32, obstacle: Rect) {
 
 handle_proj_collision :: (c: Collision) {
     if c == {
-        case .BAR; particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_COUNT);
+        case .BAR; particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
         case; if c >= .TARGET {
             target_hit(*targets_pool[c - .TARGET]);
         }
+
+        case .BORDER_BOTTOM;
+        particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
     }
 }
 
