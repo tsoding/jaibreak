@@ -28,17 +28,8 @@ Particle :: struct {
     color: Vector4 = .{.9, 0, 0, 1};
 }
 
-Particle_Emitter :: struct {
-    x: float32;
-    y: float32;
-    color: Vector4;
-    lifetime: float32;
-    period: float32;
-}
-
 // State
 particles : [128]Particle;
-particle_emitters : [128]Particle_Emitter;
 targets_pool : [..]Target;
 bar_x:   float32;
 bar_dx:  float32;
@@ -53,17 +44,8 @@ score: int;
 // TODO: death
 // TODO: victory
 
-particle_emitter_emit :: (x: float32, y: float32, color: Vector4, lifetime: float) {
-    for * particle_emitters {
-        if it.lifetime <= 0 {
-            it.x = x;
-            it.y = y;
-            it.color = color;
-            it.lifetime = lifetime;
-            it.period = 0;
-            return;
-        }
-    }
+particle_burst :: (x: float32, y: float32, color: Vector4, count: int) {
+    for 0..count-1 particle_emit(x, y, color);
 }
 
 particle_emit :: (x: float32, y: float32, color: Vector4) {
@@ -80,17 +62,6 @@ particle_emit :: (x: float32, y: float32, color: Vector4) {
             it.lifetime = PARTICLE_LIFETIME;
             return;
         }
-    }
-}
-
-particle_emitter_update :: (using emitter: *Particle_Emitter, dt: float32) {
-    if lifetime <= 0 return;
-    lifetime -= dt;
-    period -= dt;
-    if period <= 0 {
-        n := cast(int)(abs(period)/PARTICLE_EMITTER_PERIOD);
-        for 0..n particle_emit(x, y, color);
-        period = PARTICLE_EMITTER_PERIOD;
     }
 }
 
@@ -194,7 +165,7 @@ overlaps :: (a: Rect, b: Rect) -> bool {
 }
 
 target_hit :: (target: *Target) {
-    particle_emitter_emit(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, target.color, PARTICLE_EMITTER_LIFETIME);
+    particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, target.color, PARTICLE_BURST_COUNT);
     target.dead = true;
     score += 1;
 }
@@ -255,9 +226,7 @@ bar_collision :: (dt: float32, obstacle: Rect) {
 
 handle_proj_collision :: (c: Collision) {
     if c == {
-        case .BAR;
-        particle_emitter_emit(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_EMITTER_LIFETIME);
-
+        case .BAR; particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_COUNT);
         case; if c >= .TARGET {
             target_hit(*targets_pool[c - .TARGET]);
         }
@@ -282,8 +251,6 @@ update :: (dt: float32) {
                 it.lifetime -= dt;
             }
         }
-
-        for * particle_emitters particle_emitter_update(it, dt);
     }
 }
 
