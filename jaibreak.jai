@@ -7,6 +7,7 @@ Simp :: #import "Simp";
 
 // Configuration
 WINDOW_FACTOR :: 100;
+// TODO: introduce logical size of the device (similar to SDL's one)
 WINDOW_WIDTH :: 16*WINDOW_FACTOR;
 WINDOW_HEIGHT :: 9*WINDOW_FACTOR;
 TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
@@ -28,7 +29,13 @@ Particle :: struct {
     color: Vector4 = .{.9, 0, 0, 1};
 }
 
-// State
+State :: enum {
+    READY;
+    PLAY;
+    DEATH;
+    GAMEOVER;
+}
+
 particles : [128]Particle;
 targets_pool : [..]Target;
 bar_x:   float32;
@@ -39,10 +46,12 @@ proj_dx: float32;
 proj_dy: float32;
 quit: bool;
 pause: bool;
-started: bool;
+state: State;
 score: int;
-// TODO: death
+// TODO: restart animation
+death_cooldown: float;
 // TODO: victory
+// TODO: game over
 
 particle_burst :: (x: float32, y: float32, color: Vector4, count: int) {
     for 0..count-1 particle_emit(x, y, color);
@@ -99,7 +108,7 @@ init_state :: () {
     proj_dy = 0;
     quit = false;
     pause = false;
-    started = false;
+    state = .READY;
     score = 0;
 }
 
@@ -228,26 +237,52 @@ bar_collision :: (dt: float32, obstacle: Rect) {
 }
 
 handle_proj_collision :: (c: Collision) {
-    if c == {
-        case .BAR; particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
-        case; if c >= .TARGET {
-            target_hit(*targets_pool[c - .TARGET]);
+    if state == {
+        case .PLAY; {
+            if c == {
+                case .BAR; particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
+                case; if c >= .TARGET {
+                    target_hit(*targets_pool[c - .TARGET]);
+                }
+
+                case .BORDER_BOTTOM; {
+                    particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
+                    state = .DEATH;
+                    death_cooldown = DEATH_COOLDOWN;
+                }
+            }
         }
 
-        case .BORDER_BOTTOM;
-        particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
+        case;
     }
 }
 
 update :: (dt: float32) {
-    if !pause && started {
-        if (overlaps(proj_rect(proj_x, proj_y), bar_rect(bar_x))) {
-            proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
-            return;
+    if !pause {
+        if state == {
+            case .PLAY; {
+                if (overlaps(proj_rect(proj_x, proj_y), bar_rect(bar_x))) {
+                    proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
+                    return;
+                }
+                bar_collision(dt, proj_rect(proj_x, proj_y));
+                handle_proj_collision(horz_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
+                handle_proj_collision(vert_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
+            }
+            case .DEATH; {
+                death_cooldown -= dt;
+                if death_cooldown <= 0 {
+                    bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
+                    bar_dx = 0;
+                    proj_x = WINDOW_WIDTH/2 - PROJ_SIZE/2;
+                    proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
+                    proj_dx = 0;
+                    proj_dy = 0;
+                    state = .READY;
+                }
+            }
+            case;
         }
-        bar_collision(dt, proj_rect(proj_x, proj_y));
-        handle_proj_collision(horz_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
-        handle_proj_collision(vert_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
 
         for * particles {
             if it.lifetime > 0 {
@@ -266,7 +301,13 @@ fill_rect :: (using rect: Rect, color: Vector4) {
 
 render :: () {
     Simp.set_shader_for_color(enable_blend = true);
-    fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
+    if state == {
+        case .READY; #through;
+        case .PLAY; {
+            fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
+        }
+        case;
+    }
     fill_rect(bar_rect(bar_x), BAR_COLOR);
     for targets_pool if !it.dead fill_rect(target_rect(it), it.color);
     for particles {
@@ -335,22 +376,28 @@ main :: () {
             }
         }
 
+        // TODO: slight ease in/out of the bar movement
         bar_dx = 0;
-        if left {
-            bar_dx += -1;
-            if !started {
-                started = true;
-                proj_dx = -PROJ_SPEED;
-                proj_dy = -PROJ_SPEED;
+        if state == {
+            case .READY; {
+                if left {
+                    bar_dx += -1;
+                    state = .PLAY;
+                    proj_dx = -PROJ_SPEED;
+                    proj_dy = -PROJ_SPEED;
+                }
+                if right {
+                    bar_dx += 1;
+                    state = .PLAY;
+                    proj_dx = PROJ_SPEED;
+                    proj_dy = -PROJ_SPEED;
+                }
             }
-        }
-        if right {
-            bar_dx += 1;
-            if !started {
-                started = true;
-                proj_dx = PROJ_SPEED;
-                proj_dy = -PROJ_SPEED;
+            case .PLAY; {
+                if left bar_dx += -1;
+                if right bar_dx += 1;
             }
+            case;
         }
 
         update(current_dt);
