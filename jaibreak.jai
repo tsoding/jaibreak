@@ -308,6 +308,9 @@ main :: () {
 
         update_window_events();
 
+        KEY_A :: #run get_key_code(#char "a");
+        KEY_D :: #run get_key_code(#char "d");
+
         for event : events_this_frame {
             if event.type == {
                 case .QUIT; {
@@ -315,24 +318,17 @@ main :: () {
                     break;
                 }
 
-                case .KEYBOARD; if event.key_code == {
-                    case #run get_key_code(#char "a"); #through;
-                    case .ARROW_LEFT;
-                    left  = event.key_pressed != 0;
-
-                    case #run get_key_code(#char "d"); #through;
-                    case .ARROW_RIGHT;
-                    right = event.key_pressed != 0;
-
-                    case #run get_key_code(#char " ");
-                    if event.key_pressed pause = !pause;
-
-
-                    case .F5; #if DEBUG {
-                        if event.key_pressed {
-                            sync_param_vars();
-                            Simp.release_font(font);
-                            font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
+                case .KEYBOARD; if input_application_has_focus {
+                    if event.key_code == {
+                        case .ARROW_LEFT; #through; case KEY_A; left  = event.key_pressed != 0;
+                        case .ARROW_RIGHT; #through; case KEY_D; right = event.key_pressed != 0;
+                        case .ESCAPE; if event.key_pressed pause = !pause;
+                        case .F5; #if DEBUG {
+                            if event.key_pressed {
+                                sync_param_vars();
+                                Simp.release_font(font);
+                                font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
+                            }
                         }
                     }
                 }

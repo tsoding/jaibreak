@@ -2,16 +2,25 @@
 
 ![thumbnail](./thumbnail.png)
 
-# Quick Start
+## Quick Start
 
 ```console
 $ jai -version
-Version: beta 0.1.025, built on 22 May 2022.
+Version: beta 0.1.026, built on 29 May 2022.
 $ jai first.jai
 $ ./jaibreak
 ```
 
-# References
+## Controls
+
+- <kbd>←</kbd>/<kbd>→</kbd> — move bar left/right
+- <kbd>ESC</kbd> — toggle pause
+
+### Debug Build
+
+- <kbd>F5</kbd> — Hotreload [params.conf](params.conf)
+
+## References
 
 - https://github.com/tsoding/zigout
 - https://www.youtube.com/watch?v=AMUv8KvVt08
