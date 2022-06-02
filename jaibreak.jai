@@ -237,23 +237,17 @@ bar_collision :: (dt: float32, obstacle: Rect) {
 }
 
 handle_proj_collision :: (c: Collision) {
-    if state == {
-        case .PLAY; {
-            if c == {
-                case .BAR; particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
-                case; if c >= .TARGET {
-                    target_hit(*targets_pool[c - .TARGET]);
-                }
-
-                case .BORDER_BOTTOM; {
-                    particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
-                    state = .DEATH;
-                    death_cooldown = DEATH_COOLDOWN;
-                }
-            }
+    if c == {
+        case .BAR; particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
+        case; if c >= .TARGET {
+            target_hit(*targets_pool[c - .TARGET]);
         }
 
-        case;
+        case .BORDER_BOTTOM; {
+            particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
+            state = .DEATH;
+            death_cooldown = DEATH_COOLDOWN;
+        }
     }
 }
 
