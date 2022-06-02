@@ -36,6 +36,8 @@ State :: enum {
     GAMEOVER;
 }
 
+left := false;
+right := false;
 particles : [128]Particle;
 targets_pool : [..]Target;
 bar_x:   float32;
@@ -52,6 +54,7 @@ score: int;
 death_cooldown: float;
 // TODO: victory
 // TODO: game over
+font: *Simp.Dynamic_Font;
 
 particle_burst :: (x: float32, y: float32, color: Vector4, count: int) {
     for 0..count-1 particle_emit(x, y, color);
@@ -252,6 +255,30 @@ handle_proj_collision :: (c: Collision) {
 }
 
 update :: (dt: float32) {
+    // TODO: slight ease in/out of the bar movement
+    bar_dx = 0;
+    if state == {
+        case .READY; {
+            if left {
+                bar_dx += -1;
+                state = .PLAY;
+                proj_dx = -PROJ_SPEED;
+                proj_dy = -PROJ_SPEED;
+            }
+            if right {
+                bar_dx += 1;
+                state = .PLAY;
+                proj_dx = PROJ_SPEED;
+                proj_dy = -PROJ_SPEED;
+            }
+        }
+        case .PLAY; {
+            if left bar_dx += -1;
+            if right bar_dx += 1;
+        }
+        case;
+    }
+
     if !pause {
         if state == {
             case .PLAY; {
@@ -294,6 +321,11 @@ fill_rect :: (using rect: Rect, color: Vector4) {
 }
 
 render :: () {
+    {
+        using BACKGROUND_COLOR;
+        Simp.clear_render_target(x, y, z, w);
+    }
+
     Simp.set_shader_for_color(enable_blend = true);
     if state == {
         case .READY; #through;
@@ -317,12 +349,23 @@ render :: () {
             fill_rect(particle_rect, color);
         }
     }
+
+    score_text_width := Simp.prepare_text(font, tprint("Score: %", score));
+    Simp.draw_prepared_text(font, SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
+    if pause {
+        pause_text_width := Simp.prepare_text(font, "Pause");
+        Simp.draw_prepared_text(font, WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
+    }
+#if DEBUG {
+    debug_text_width := Simp.prepare_text(font, "Debug");
+    Simp.draw_prepared_text(font, WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), DEBUG_TEXT_COLOR);
+}
 }
 
 main :: () {
     init_state();
 
-    font := Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
+    font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
     if !font {
         print("[ERROR] could not load font %\n", TEXT_FONT_FILE_NAME);
         exit(1);
@@ -333,8 +376,6 @@ main :: () {
     Simp.set_render_target(window);
 
     last_time := get_time();
-    left := false;
-    right := false;
     while !quit {
         now := get_time();
         delta : float64 = now - last_time;
@@ -370,48 +411,8 @@ main :: () {
             }
         }
 
-        // TODO: slight ease in/out of the bar movement
-        bar_dx = 0;
-        if state == {
-            case .READY; {
-                if left {
-                    bar_dx += -1;
-                    state = .PLAY;
-                    proj_dx = -PROJ_SPEED;
-                    proj_dy = -PROJ_SPEED;
-                }
-                if right {
-                    bar_dx += 1;
-                    state = .PLAY;
-                    proj_dx = PROJ_SPEED;
-                    proj_dy = -PROJ_SPEED;
-                }
-            }
-            case .PLAY; {
-                if left bar_dx += -1;
-                if right bar_dx += 1;
-            }
-            case;
-        }
-
         update(current_dt);
-
-        {
-            using BACKGROUND_COLOR;
-            Simp.clear_render_target(x, y, z, w);
-        }
-
         render();
-        score_text_width := Simp.prepare_text(font, tprint("Score: %", score));
-        Simp.draw_prepared_text(font, SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
-        if pause {
-            pause_text_width := Simp.prepare_text(font, "Pause");
-            Simp.draw_prepared_text(font, WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
-        }
-        #if DEBUG {
-            debug_text_width := Simp.prepare_text(font, "Debug");
-            Simp.draw_prepared_text(font, WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), DEBUG_TEXT_COLOR);
-        }
 
         Simp.swap_buffers(window);
 
