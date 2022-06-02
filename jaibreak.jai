@@ -105,10 +105,6 @@ init_state :: () {
 
     bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
     bar_dx = 0;
-    proj_x = WINDOW_WIDTH/2 - PROJ_SIZE/2;
-    proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
-    proj_dx = 0;
-    proj_dy = 0;
     quit = false;
     pause = false;
     state = .READY;
@@ -254,55 +250,37 @@ handle_proj_collision :: (c: Collision) {
     }
 }
 
-update :: (dt: float32) {
-    // TODO: slight ease in/out of the bar movement
-    bar_dx = 0;
-    if state == {
-        case .READY; {
-            if left {
-                bar_dx += -1;
-                state = .PLAY;
-                proj_dx = -PROJ_SPEED;
-                proj_dy = -PROJ_SPEED;
-            }
-            if right {
-                bar_dx += 1;
-                state = .PLAY;
-                proj_dx = PROJ_SPEED;
-                proj_dy = -PROJ_SPEED;
-            }
-        }
-        case .PLAY; {
-            if left bar_dx += -1;
-            if right bar_dx += 1;
-        }
-        case;
-    }
+fill_rect :: (using rect: Rect, color: Vector4) {
+    Simp.immediate_quad(x, WINDOW_HEIGHT - y, x + w, WINDOW_HEIGHT - y - h, color);
+}
 
+update :: (dt: float32) {
     if !pause {
+        // TODO: slight ease in/out of the bar movement
+        bar_dx = 0;
+        if left  then bar_dx += -1;
+        if right then bar_dx +=  1;
+        bar_collision(dt, proj_rect(proj_x, proj_y));
+
         if state == {
+            case .READY; {
+                proj_x = bar_x + BAR_LEN/2 - PROJ_SIZE/2;
+                proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
+            }
+
             case .PLAY; {
-                if (overlaps(proj_rect(proj_x, proj_y), bar_rect(bar_x))) {
-                    proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
-                    return;
-                }
-                bar_collision(dt, proj_rect(proj_x, proj_y));
                 handle_proj_collision(horz_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
                 handle_proj_collision(vert_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
             }
+
             case .DEATH; {
                 death_cooldown -= dt;
-                if death_cooldown <= 0 {
-                    bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
-                    bar_dx = 0;
-                    proj_x = WINDOW_WIDTH/2 - PROJ_SIZE/2;
-                    proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
-                    proj_dx = 0;
-                    proj_dy = 0;
-                    state = .READY;
-                }
+                if death_cooldown <= 0 then state = .READY;
+                proj_dx = 0;
+                proj_dy = 0;
+                proj_x = bar_x + BAR_LEN/2 - PROJ_SIZE/2;
+                proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
             }
-            case;
         }
 
         for * particles {
@@ -316,39 +294,26 @@ update :: (dt: float32) {
     }
 }
 
-fill_rect :: (using rect: Rect, color: Vector4) {
-    Simp.immediate_quad(x, WINDOW_HEIGHT - y, x + w, WINDOW_HEIGHT - y - h, color);
-}
-
 render :: () {
-    {
-        using BACKGROUND_COLOR;
-        Simp.clear_render_target(x, y, z, w);
-    }
-
+    Simp.clear_render_target(BACKGROUND_COLOR.x, BACKGROUND_COLOR.y, BACKGROUND_COLOR.z, BACKGROUND_COLOR.w);
     Simp.set_shader_for_color(enable_blend = true);
-    if state == {
-        case .READY; #through;
-        case .PLAY; {
-            fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
-        }
-        case;
-    }
-    fill_rect(bar_rect(bar_x), BAR_COLOR);
-    for targets_pool if !it.dead fill_rect(target_rect(it), it.color);
+
     for particles {
         if it.lifetime > 0 {
             size := it.size*PARTICLE_BASE_SIZE;
-            particle_rect : Rect = ---;
-            particle_rect.x = it.x;
-            particle_rect.y = it.y;
-            particle_rect.w = size;
-            particle_rect.h = size;
             color := it.color;
             color.w = it.lifetime/PARTICLE_LIFETIME;
-            fill_rect(particle_rect, color);
+            fill_rect(rect(it.x, it.y, size, size), color);
         }
     }
+
+    if state == {
+        case .READY; #through;
+        case .PLAY;
+        fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
+    }
+    fill_rect(bar_rect(bar_x), BAR_COLOR);
+    for targets_pool if !it.dead then fill_rect(target_rect(it), it.color);
 
     score_text_width := Simp.prepare_text(font, tprint("Score: %", score));
     Simp.draw_prepared_text(font, SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
@@ -386,6 +351,7 @@ main :: () {
 
         KEY_A :: #run get_key_code(#char "a");
         KEY_D :: #run get_key_code(#char "d");
+        KEY_SPACE :: #run get_key_code(#char " ");
 
         for event : events_this_frame {
             if event.type == {
@@ -398,7 +364,13 @@ main :: () {
                     if event.key_code == {
                         case .ARROW_LEFT; #through; case KEY_A; left  = event.key_pressed != 0;
                         case .ARROW_RIGHT; #through; case KEY_D; right = event.key_pressed != 0;
-                        case .ESCAPE; if event.key_pressed pause = !pause;
+                        case KEY_SPACE; if !pause && state == .READY && event.key_pressed {
+                            state = .PLAY;
+                            proj_dy = -PROJ_SPEED;
+                            proj_dx = PROJ_SPEED;
+                            if left then proj_dx = -PROJ_SPEED;
+                        }
+                        case .ESCAPE; if event.key_pressed then pause = !pause;
                         case .F5; #if DEBUG {
                             if event.key_pressed {
                                 sync_param_vars();

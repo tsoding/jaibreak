@@ -15,6 +15,7 @@ $ ./jaibreak
 
 - <kbd>←</kbd>/<kbd>→</kbd> — move bar left/right
 - <kbd>ESC</kbd> — toggle pause
+- <kbd>SPACE</kbd> — release the "ball"
 
 ### Debug Build
 
