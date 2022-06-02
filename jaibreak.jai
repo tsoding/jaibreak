@@ -215,6 +215,7 @@ vert_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: floa
         return .BORDER_BOTTOM;
     }
     if overlaps(rect(<<x, ny, w, h), bar_rect(bar_x)) {
+        // TODO: different angles of reflection depending on the side of the bar projectile hits
         if bar_dx != 0 then <<dx = bar_dx*abs(<<dx);
         <<dy *= -1;
         return .BAR;
