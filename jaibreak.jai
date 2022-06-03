@@ -52,6 +52,7 @@ state: State;
 score: int;
 // TODO: restart animation
 death_cooldown: float;
+lifes: int;
 // TODO: victory
 // TODO: game over
 font: *Simp.Dynamic_Font;
@@ -109,6 +110,7 @@ init_state :: () {
     pause = false;
     state = .READY;
     score = 0;
+    lifes = 3;
 }
 
 Rect :: struct {
@@ -247,6 +249,7 @@ handle_proj_collision :: (c: Collision) {
             particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
             state = .DEATH;
             death_cooldown = DEATH_COOLDOWN;
+            lifes = max(lifes - 1, 0);
         }
     }
 }
@@ -315,6 +318,13 @@ render :: () {
     }
     fill_rect(bar_rect(bar_x), BAR_COLOR);
     for targets_pool if !it.dead then fill_rect(target_rect(it), it.color);
+
+    // TODO: make the score and lifes semi-transparent when the projectile cross them
+    for i: 0..lifes-1 {
+        x := LIFES_PADDING_RIGHT + i*(LIFE_SIZE + LIFES_PADDING);
+        y := LIFES_PADDING_TOP + LIFE_SIZE;
+        fill_rect(rect(x, y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
+    }
 
     score_text_width := Simp.prepare_text(font, tprint("Score: %", score));
     Simp.draw_prepared_text(font, SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
