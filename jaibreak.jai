@@ -322,7 +322,7 @@ render :: () {
     // TODO: make the score and lifes semi-transparent when the projectile cross them
     for i: 0..lifes-1 {
         x := LIFES_PADDING_RIGHT + i*(LIFE_SIZE + LIFES_PADDING);
-        y := LIFES_PADDING_TOP + LIFE_SIZE;
+        y := LIFES_PADDING_TOP;
         fill_rect(rect(x, y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
     }
 
