@@ -61,6 +61,7 @@ particle_burst :: (x: float32, y: float32, color: Vector4, count: int) {
     for 0..count-1 particle_emit(x, y, color);
 }
 
+// TODO: gravity for particles
 particle_emit :: (x: float32, y: float32, color: Vector4) {
     for * particles {
         if it.lifetime <= 0 {
