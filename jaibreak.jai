@@ -396,7 +396,7 @@ main :: () {
                         case KEY_SPACE; if !pause && state == .READY && event.key_pressed {
                             state = .PLAY;
                             proj_dy = -PROJ_SPEED;
-                            proj_dx = 0;
+                            proj_dx = PROJ_SPEED*ANGLE_FACTOR;
                             if left  then proj_dx = -PROJ_SPEED;
                             if right then proj_dx = PROJ_SPEED;
                         }
