@@ -11,6 +11,7 @@ WINDOW_FACTOR :: 100;
 WINDOW_WIDTH :: 16*WINDOW_FACTOR;
 WINDOW_HEIGHT :: 9*WINDOW_FACTOR;
 TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
+ANGLE_FACTOR :: .45;
 
 Target :: struct {
     x: float32;
@@ -242,11 +243,20 @@ handle_proj_collision :: (c: Collision) {
     if c == {
         case .BAR; {
             particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
-            // TODO: different angles of reflection depending on the side of the bar projectile hits
-            if bar_dx != 0 then proj_dx = bar_dx*abs(proj_dx);
-        }
-        case; if c >= .TARGET {
-            target_hit(*targets_pool[c - .TARGET]);
+            if bar_dx != 0 {
+                proj_dx = bar_dx*PROJ_SPEED;
+            } else {
+                sign :: (x: float) -> float {
+                    // TODO: branchless sign()
+                    if x < 0 {
+                        return -1;
+                    } else if x > 0 {
+                        return 1;
+                    }
+                    return 0;
+                }
+                proj_dx = sign(proj_dx)*PROJ_SPEED*ANGLE_FACTOR;
+            }
         }
 
         case .BORDER_BOTTOM; {
@@ -254,6 +264,10 @@ handle_proj_collision :: (c: Collision) {
             state = .DEATH;
             death_cooldown = DEATH_COOLDOWN;
             lifes = max(lifes - 1, 0);
+        }
+
+        case; if c >= .TARGET {
+            target_hit(*targets_pool[c - .TARGET]);
         }
     }
 }
@@ -382,8 +396,9 @@ main :: () {
                         case KEY_SPACE; if !pause && state == .READY && event.key_pressed {
                             state = .PLAY;
                             proj_dy = -PROJ_SPEED;
-                            proj_dx = PROJ_SPEED;
-                            if left then proj_dx = -PROJ_SPEED;
+                            proj_dx = PROJ_SPEED*ANGLE_FACTOR;
+                            if left  then proj_dx = -PROJ_SPEED;
+                            if right then proj_dx = PROJ_SPEED;
                         }
                         case .ESCAPE; if event.key_pressed then pause = !pause;
                         case .F5; #if DEBUG {
