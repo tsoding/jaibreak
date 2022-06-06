@@ -219,8 +219,6 @@ vert_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: floa
         return .BORDER_BOTTOM;
     }
     if overlaps(rect(<<x, ny, w, h), bar_rect(bar_x)) {
-        // TODO: different angles of reflection depending on the side of the bar projectile hits
-        if bar_dx != 0 then <<dx = bar_dx*abs(<<dx);
         <<dy *= -1;
         return .BAR;
     }
@@ -242,7 +240,11 @@ bar_collision :: (dt: float32, obstacle: Rect) {
 
 handle_proj_collision :: (c: Collision) {
     if c == {
-        case .BAR; particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
+        case .BAR; {
+            particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
+            // TODO: different angles of reflection depending on the side of the bar projectile hits
+            if bar_dx != 0 then proj_dx = bar_dx*abs(proj_dx);
+        }
         case; if c >= .TARGET {
             target_hit(*targets_pool[c - .TARGET]);
         }
