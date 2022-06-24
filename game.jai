@@ -1,6 +1,5 @@
 #import "Basic";
 #import "Math";
-/* #import "Random"; */
 
 Target :: struct {
     x: float32;
@@ -29,7 +28,9 @@ State :: enum {
 left := false;
 right := false;
 particles : [128]Particle;
-targets_pool : [TARGET_ROWS*TARGET_COLS]Target;
+// TODO: the size must be TARGET_ROWS*TARGET_ROWS but in debug mode bot TARGET_ROWS and TARGET_ROWS are runtime values
+// Come up with more robust way to define the size of this array
+targets_pool : [100]Target;
 bar_x:   float32;
 bar_dx:  float32;
 proj_x:  float32;
@@ -352,6 +353,8 @@ render :: () {
         fill_rect(rect(x, y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
     }
 
+    // TODO: text is temporarily broken
+    // Does not work on WASM platform yet
     #if 0 {
     score_text_width := prepare_text(tprint("Score: %", score));
     draw_prepared_text(SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);

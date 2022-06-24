@@ -230,11 +230,10 @@ build_debug :: () {
         exit(1);
     }
 
-    build_wasm_platform();
-    /*
+    // TODO: document how to build WASM platform
+    // build_wasm_platform();
     build_release();
     build_debug();
-    */
 
     set_build_options_dc(.{do_output=false});
 }
