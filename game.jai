@@ -1,17 +1,5 @@
 #import "Basic";
 #import "Math";
-#import "Window_Creation";
-#import "Input";
-#import "Random";
-Simp :: #import "Simp";
-
-// Configuration
-WINDOW_FACTOR :: 100;
-// TODO: introduce logical size of the device (similar to SDL's one)
-WINDOW_WIDTH :: 16*WINDOW_FACTOR;
-WINDOW_HEIGHT :: 9*WINDOW_FACTOR;
-TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
-ANGLE_FACTOR :: .45;
 
 Target :: struct {
     x: float32;
@@ -40,7 +28,9 @@ State :: enum {
 left := false;
 right := false;
 particles : [128]Particle;
-targets_pool : [..]Target;
+// TODO: the size must be TARGET_ROWS*TARGET_ROWS but in debug mode bot TARGET_ROWS and TARGET_ROWS are runtime values
+// Come up with more robust way to define the size of this array
+targets_pool : [100]Target;
 bar_x:   float32;
 bar_dx:  float32;
 proj_x:  float32;
@@ -56,7 +46,7 @@ death_cooldown: float;
 lifes: int;
 // TODO: victory
 // TODO: game over
-font: *Simp.Dynamic_Font;
+
 // TODO: speeding up the ball over time
 
 particle_burst :: (x: float32, y: float32, color: Vector4, count: int) {
@@ -81,11 +71,31 @@ particle_emit :: (x: float32, y: float32, color: Vector4) {
     }
 }
 
+key_press :: (key: u32) {
+    if key == {
+        case #char "A"; left = true;
+        case #char "D"; right = true;
+        case #char " "; if !pause && state == .READY {
+            state = .PLAY;
+            proj_dy = -PROJ_SPEED;
+            proj_dx = PROJ_SPEED*ANGLE_FACTOR;
+            if left  then proj_dx = -PROJ_SPEED;
+            if right then proj_dx = PROJ_SPEED;
+        }
+    }
+}
+
+key_release :: (key: u32) {
+    if key == {
+        case #char "A"; left = false;
+        case #char "D"; right = false;
+    }
+}
+
 init_state :: () {
     target_grid_width := (TARGET_COLS*TARGET_WIDTH + (TARGET_COLS - 1)*TARGET_PADDING_X);
     target_grid_x := WINDOW_WIDTH/2 - target_grid_width/2;
 
-    array_reset_keeping_memory(*targets_pool);
     for row: 0..TARGET_ROWS-1 {
         for col: 0..TARGET_COLS-1 {
             target: Target = ---;
@@ -93,9 +103,9 @@ init_state :: () {
             target.y     = xx (TARGET_GRID_Y + (TARGET_HEIGHT + TARGET_PADDING_Y)*row);
             target.dead  = false;
 
-            red   := srgb_to_linear(Vector4.{1, .18, .18, 1});
-            green := srgb_to_linear(Vector4.{.18, 1, .18, 1});
-            blue  := srgb_to_linear(Vector4.{.18, .18, 1, 1});
+            red   := srgb_to_linear(make_vector4(1, .18, .18, 1));
+            green := srgb_to_linear(make_vector4(.18, 1, .18, 1));
+            blue  := srgb_to_linear(make_vector4(.18, .18, 1, 1));
             level := .5;
             t     := cast(float) row/TARGET_COLS;
             c     := cast(float) (t < level);
@@ -103,7 +113,7 @@ init_state :: () {
             g2    := lerp(green, blue, (t - level)/(1 - level));
             target.color = linear_to_srgb(c*g1 + (1 - c)*g2);
 
-            array_add(*targets_pool, target);
+            targets_pool[row*TARGET_COLS + col] = target;
         }
     }
 
@@ -191,7 +201,7 @@ horz_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: floa
         <<dx *= -1;
         return .BORDER_LEFT;
     }
-    if nx + w > WINDOW_WIDTH {
+    if nx + w > xx WINDOW_WIDTH {
         <<dx *= -1;
         return .BORDER_RIGHT;
     }
@@ -215,7 +225,7 @@ vert_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: floa
         <<dy *= -1;
         return .BORDER_TOP;
     }
-    if ny + w > WINDOW_HEIGHT {
+    if ny + w > xx WINDOW_HEIGHT {
         <<dy *= -1;
         return .BORDER_BOTTOM;
     }
@@ -242,7 +252,8 @@ bar_collision :: (dt: float32, obstacle: Rect) {
 handle_proj_collision :: (c: Collision) {
     if c == {
         case .BAR; {
-            particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
+            bar_color := make_vector4(1, 0.19, 0.19, 1);
+            particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, bar_color, PARTICLE_BURST_HIT_COUNT);
             if bar_dx != 0 {
                 proj_dx = bar_dx*PROJ_SPEED;
             } else {
@@ -260,7 +271,7 @@ handle_proj_collision :: (c: Collision) {
         }
 
         case .BORDER_BOTTOM; {
-            particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
+            particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, make_vector4(1, 1, 1, 1), PARTICLE_BURST_DEATH_COUNT);
             state = .DEATH;
             death_cooldown = DEATH_COOLDOWN;
             lifes = max(lifes - 1, 0);
@@ -270,10 +281,6 @@ handle_proj_collision :: (c: Collision) {
             target_hit(*targets_pool[c - .TARGET]);
         }
     }
-}
-
-fill_rect :: (using rect: Rect, color: Vector4) {
-    Simp.immediate_quad(x, WINDOW_HEIGHT - y, x + w, WINDOW_HEIGHT - y - h, color);
 }
 
 update :: (dt: float32) {
@@ -317,9 +324,6 @@ update :: (dt: float32) {
 }
 
 render :: () {
-    Simp.clear_render_target(BACKGROUND_COLOR.x, BACKGROUND_COLOR.y, BACKGROUND_COLOR.z, BACKGROUND_COLOR.w);
-    Simp.set_shader_for_color(enable_blend = true);
-
     for particles {
         if it.lifetime > 0 {
             size := it.size*PARTICLE_BASE_SIZE;
@@ -331,10 +335,15 @@ render :: () {
 
     if state == {
         case .READY; #through;
-        case .PLAY;
-        fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
+        case .PLAY; {
+            rect := proj_rect(proj_x, proj_y);
+            color : Vector4 = make_vector4(1, 1, 1, 1);
+            fill_rect(proj_rect(proj_x, proj_y), color);
+        }
     }
-    fill_rect(bar_rect(bar_x), BAR_COLOR);
+    // FF3030FF
+    bar_color := make_vector4(1, 0.19, 0.19, 1);
+    fill_rect(bar_rect(bar_x), bar_color);
     for targets_pool if !it.dead then fill_rect(target_rect(it), it.color);
 
     // TODO: make the score and lifes semi-transparent when the projectile cross them
@@ -344,80 +353,18 @@ render :: () {
         fill_rect(rect(x, y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
     }
 
-    score_text_width := Simp.prepare_text(font, tprint("Score: %", score));
-    Simp.draw_prepared_text(font, SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
+    // TODO: text is temporarily broken
+    // Does not work on WASM platform yet
+    #if 0 {
+    score_text_width := prepare_text(tprint("Score: %", score));
+    draw_prepared_text(SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
     if pause {
-        pause_text_width := Simp.prepare_text(font, "Pause");
-        Simp.draw_prepared_text(font, WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
+        pause_text_width := prepare_text("Pause");
+        draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
     }
 #if DEBUG {
     debug_text_width := Simp.prepare_text(font, "Debug");
     Simp.draw_prepared_text(font, WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), DEBUG_TEXT_COLOR);
 }
-}
-
-main :: () {
-    init_state();
-
-    font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
-    if !font {
-        print("[ERROR] could not load font %\n", TEXT_FONT_FILE_NAME);
-        exit(1);
-    }
-    print("[INFO] loaded font %\n", TEXT_FONT_FILE_NAME);
-
-    window := create_window(window_name="Jaibreak", width=WINDOW_WIDTH, height=WINDOW_HEIGHT);
-    Simp.set_render_target(window);
-
-    last_time := get_time();
-    while !quit {
-        now := get_time();
-        delta : float64 = now - last_time;
-        current_dt := cast(float) delta;
-        last_time = now;
-
-        update_window_events();
-
-        KEY_A :: #run get_key_code(#char "a");
-        KEY_D :: #run get_key_code(#char "d");
-        KEY_SPACE :: #run get_key_code(#char " ");
-
-        for event : events_this_frame {
-            if event.type == {
-                case .QUIT; {
-                    quit = true;
-                    break;
-                }
-
-                case .KEYBOARD; if input_application_has_focus {
-                    if event.key_code == {
-                        case .ARROW_LEFT; #through; case KEY_A; left  = event.key_pressed != 0;
-                        case .ARROW_RIGHT; #through; case KEY_D; right = event.key_pressed != 0;
-                        case KEY_SPACE; if !pause && state == .READY && event.key_pressed {
-                            state = .PLAY;
-                            proj_dy = -PROJ_SPEED;
-                            proj_dx = PROJ_SPEED*ANGLE_FACTOR;
-                            if left  then proj_dx = -PROJ_SPEED;
-                            if right then proj_dx = PROJ_SPEED;
-                        }
-                        case .ESCAPE; if event.key_pressed then pause = !pause;
-                        case .F5; #if DEBUG {
-                            if event.key_pressed {
-                                sync_param_vars();
-                                Simp.release_font(font);
-                                font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        update(current_dt);
-        render();
-
-        Simp.swap_buffers(window);
-
-        reset_temporary_storage();
     }
 }
