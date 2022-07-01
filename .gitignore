@@ -4,3 +4,4 @@ gen_*.jai
 *.so
 main.wasm
 main.wat
+*.svg

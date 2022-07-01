@@ -3,6 +3,7 @@
 #import "Window_Creation";
 #import "Input";
 #import "Random";
+#import "File";
 Simp :: #import "Simp";
 
 // TODO: introduce logical size of the device (similar to SDL's one)
@@ -10,7 +11,81 @@ TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
 
 font: *Simp.Dynamic_Font;
 
+#if DEBUG {
+    Colored_Rect :: struct {
+        rect: Rect;
+        color: Vector4;
+    };
+
+    rect_buffer: [..]Colored_Rect;
+
+    clear_rect_buffer :: () {
+        array_reset_keeping_memory(*rect_buffer);
+    }
+
+    write_svg_header :: (file: *File, width: int, height: int) {
+        file_write(file, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+        file_write(file, "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n");
+        file_write(file, tprint("<svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" x=\"0px\" y=\"0px\" viewBox=\"0 0 % %\" xml:space=\"preserve\">\n", width, height));
+    }
+
+    tvector4_as_svg_style :: (color: Vector4) -> string {
+        hex : u32 = 0;
+        hex |= (cast(u32)(color.x*255.0))<<16;
+        hex |= (cast(u32)(color.y*255.0))<<8;
+        hex |= (cast(u32)(color.z*255.0));
+        return tprint("fill:#%;fill-opacity:%", formatInt(hex, base=16, minimum_digits=6), color.w);
+    }
+
+    write_svg_rect :: (file: *File, using colored_rect: Colored_Rect) {
+        line := tprint("<rect x=\"%\" y=\"%\" width=\"%\" height=\"%\" style=\"%\"/>\n",
+                       rect.x, rect.y, rect.w, rect.h,
+                       tvector4_as_svg_style(color));
+        file_write(file, line);
+    }
+
+    write_svg_footer :: (file: *File) {
+        file_write(file, "</svg>\n");
+    }
+
+    save_rect_buffer_as_svg :: () {
+        now, now_ok := to_nanoseconds(current_time_consensus());
+        if !now_ok {
+            print("ERROR: could not convert current time to nanoseconds");
+            return;
+        }
+        file_path := tprint("screenshot-%.svg", now);
+        file, file_ok := file_open(file_path, for_writing = true);
+        if !file_ok {
+            print("ERROR: could not open file % for writing", file_path);
+            return;
+        }
+        defer file_close(*file);
+
+        write_svg_header(*file, WINDOW_WIDTH, WINDOW_HEIGHT);
+        background : Colored_Rect = ---;
+        background.rect.x = 0;
+        background.rect.y = 0;
+        background.rect.w = xx WINDOW_WIDTH;
+        background.rect.h = xx WINDOW_HEIGHT;
+        background.color = BACKGROUND_COLOR;
+        write_svg_rect(*file, background);
+        for * rect_buffer {
+            write_svg_rect(*file, it);
+        }
+        write_svg_footer(*file);
+
+        print("Saved file %\n", file_path);
+    }
+}
+
 fill_rect :: (using rect: Rect, color: Vector4) {
+    #if DEBUG {
+        colored_rect : Colored_Rect = ---;
+        colored_rect.rect = rect;
+        colored_rect.color = color;
+        array_add(*rect_buffer, colored_rect);
+    }
     Simp.set_shader_for_color(enable_blend = true);
     Simp.immediate_quad(x, WINDOW_HEIGHT - y, x + w, WINDOW_HEIGHT - y - h, color);
 }
@@ -67,6 +142,12 @@ main :: () {
                                 font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
                             }
                         }
+
+                        case .F3; #if DEBUG {
+                            if event.key_pressed {
+                                save_rect_buffer_as_svg();
+                            }
+                        }
                     }
                 }
             }
@@ -74,6 +155,8 @@ main :: () {
 
         update(current_dt);
         Simp.clear_render_target(BACKGROUND_COLOR.x, BACKGROUND_COLOR.y, BACKGROUND_COLOR.z, BACKGROUND_COLOR.w);
+
+        #if DEBUG then clear_rect_buffer();
         render();
 
         Simp.swap_buffers(window);
