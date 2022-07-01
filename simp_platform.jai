@@ -17,6 +17,13 @@ font: *Simp.Dynamic_Font;
         color: Vector4;
     };
 
+    make_colored_rect :: (rect: Rect, color: Vector4) -> Colored_Rect {
+        result : Colored_Rect = ---;
+        result.rect = rect;
+        result.color = color;
+        return result;
+    }
+
     rect_buffer: [..]Colored_Rect;
 
     clear_rect_buffer :: () {
@@ -63,12 +70,7 @@ font: *Simp.Dynamic_Font;
         defer file_close(*file);
 
         write_svg_header(*file, WINDOW_WIDTH, WINDOW_HEIGHT);
-        background : Colored_Rect = ---;
-        background.rect.x = 0;
-        background.rect.y = 0;
-        background.rect.w = xx WINDOW_WIDTH;
-        background.rect.h = xx WINDOW_HEIGHT;
-        background.color = BACKGROUND_COLOR;
+        background :: #run make_colored_rect(make_rect(0, 0, xx WINDOW_WIDTH, xx WINDOW_HEIGHT), BACKGROUND_COLOR);
         write_svg_rect(*file, background);
         for * rect_buffer {
             write_svg_rect(*file, it);

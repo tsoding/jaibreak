@@ -133,7 +133,7 @@ Rect :: struct {
     h: float32;
 }
 
-rect :: (x: float32, y: float32, w: float32, h: float32) -> Rect {
+make_rect :: (x: float32, y: float32, w: float32, h: float32) -> Rect {
     result : Rect = ---;
     result.x = x;
     result.y = y;
@@ -205,12 +205,12 @@ horz_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: floa
         <<dx *= -1;
         return .BORDER_RIGHT;
     }
-    if overlaps(rect(nx, <<y, w, h), bar_rect(bar_x)) {
+    if overlaps(make_rect(nx, <<y, w, h), bar_rect(bar_x)) {
         <<dx *= -1;
         return .BAR;
     }
     for * targets_pool {
-        if !it.dead && overlaps(rect(nx, <<y, w, h), target_rect(it)) {
+        if !it.dead && overlaps(make_rect(nx, <<y, w, h), target_rect(it)) {
             <<dx *= -1;
             return xx (xx Collision.TARGET + it_index);
         }
@@ -229,12 +229,12 @@ vert_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: floa
         <<dy *= -1;
         return .BORDER_BOTTOM;
     }
-    if overlaps(rect(<<x, ny, w, h), bar_rect(bar_x)) {
+    if overlaps(make_rect(<<x, ny, w, h), bar_rect(bar_x)) {
         <<dy *= -1;
         return .BAR;
     }
     for *targets_pool {
-        if !it.dead && overlaps(rect(<<x, ny, w, h), target_rect(it)) {
+        if !it.dead && overlaps(make_rect(<<x, ny, w, h), target_rect(it)) {
             <<dy *= -1;
             return xx (xx Collision.TARGET + it_index);
         }
@@ -329,7 +329,7 @@ render :: () {
             size := it.size*PARTICLE_BASE_SIZE;
             color := it.color;
             color.w = it.lifetime/PARTICLE_LIFETIME;
-            fill_rect(rect(it.x, it.y, size, size), color);
+            fill_rect(make_rect(it.x, it.y, size, size), color);
         }
     }
 
@@ -350,7 +350,7 @@ render :: () {
     for i: 0..lifes-1 {
         x := LIFES_PADDING_RIGHT + i*(LIFE_SIZE + LIFES_PADDING);
         y := LIFES_PADDING_TOP;
-        fill_rect(rect(x, y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
+        fill_rect(make_rect(x, y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
     }
 
     // TODO: text is temporarily broken
