@@ -119,7 +119,7 @@ load_params_from_file :: (file_path: string) -> bool {
 
 get_param :: ($T: Type, name: string) -> T {
     // TODO: make sure T is within supported types (the ones that are in the Tagged_Union list)
-    value, success := HT.table_find(params, name);
+    value, success := HT.table_find(*params, name);
     if success return <<(cast(*T) value.bytes.data);
     default: T;
     return default;

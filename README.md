@@ -6,7 +6,7 @@
 
 ```console
 $ jai -version
-Version: beta 0.1.026, built on 29 May 2022.
+Version: beta 0.1.031, built on 11 July 2022.
 $ jai first.jai
 $ ./jaibreak
 ```
