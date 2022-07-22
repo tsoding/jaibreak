@@ -39,6 +39,7 @@ parse_hex_color :: (hex: string) -> Vector4, bool {
     return color, true;
 }
 
+// TODO: implement dynamic params.conf reloading for WASM platform
 load_params_from_file :: (file_path: string) -> bool {
     content, ok := read_entire_file(file_path);
     if !ok {

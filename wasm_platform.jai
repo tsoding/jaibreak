@@ -1,8 +1,13 @@
+platform_prepare_text :: (data: *u8, count: s64) -> (width: s64) #foreign wasmstub;
+
 prepare_text :: (text: string) -> (width: s64) {
-    return 0;
+    return platform_prepare_text(text.data, text.count); //platform_prepare_text(text.data, text.count);
 }
 
+platform_draw_prepared_text :: (x: s64, y: s64, r: float, g: float, b: float, a: float) #foreign wasmstub;
+
 draw_prepared_text :: (x: s64, y: s64, color: Vector4) {
+    platform_draw_prepared_text(x, y, color.x, color.y, color.z, color.w);
 }
 
 wasmstub :: #foreign_library "libwasmstub";

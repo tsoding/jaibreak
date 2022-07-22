@@ -323,6 +323,38 @@ update :: (dt: float32) {
     }
 }
 
+// TODO: use temporary allocator in here
+score_buffer: [64]u8;
+
+int_to_string :: (x: int, data: *u8) -> int {
+    assert(x >= 0);
+    if (x == 0) {
+        data[0] = xx #char "0";
+        return 1;
+    }
+
+    count := 0;
+    while x > 0 {
+        data[count] = xx (x%10 + #char "0");
+        count += 1;
+        x /= 10;
+    }
+    n := count/2-1;
+    for 0..n Swap(*data[it], *data[count - it - 1]);
+    return count;
+}
+
+render_score :: (x: int) -> string {
+    score_label :: "Score: ";
+    memcpy(score_buffer.data, score_label.data, score_label.count);
+    count := int_to_string(x, score_buffer.data + score_label.count);
+
+    result : string = ---;
+    result.data = score_buffer.data;
+    result.count = score_label.count + count;
+    return result;
+}
+
 render :: () {
     for particles {
         if it.lifetime > 0 {
@@ -337,13 +369,11 @@ render :: () {
         case .READY; #through;
         case .PLAY; {
             rect := proj_rect(proj_x, proj_y);
-            color : Vector4 = make_vector4(1, 1, 1, 1);
-            fill_rect(proj_rect(proj_x, proj_y), color);
+            fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
         }
     }
     // FF3030FF
-    bar_color := make_vector4(1, 0.19, 0.19, 1);
-    fill_rect(bar_rect(bar_x), bar_color);
+    fill_rect(bar_rect(bar_x), BAR_COLOR);
     for targets_pool if !it.dead then fill_rect(target_rect(it), it.color);
 
     // TODO: make the score and lifes semi-transparent when the projectile cross them
@@ -353,10 +383,9 @@ render :: () {
         fill_rect(make_rect(x, y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
     }
 
-    // TODO: text is temporarily broken
-    // Does not work on WASM platform yet
-    #if 0 {
-    score_text_width := prepare_text(tprint("Score: %", score));
+    // TODO: implement conversion of int to string
+    /* score_text_width := prepare_text(tprint("Score: %", score)); */
+    score_text_width := prepare_text(render_score(score));
     draw_prepared_text(SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
     if pause {
         pause_text_width := prepare_text("Pause");
@@ -366,5 +395,4 @@ render :: () {
     debug_text_width := Simp.prepare_text(font, "Debug");
     Simp.draw_prepared_text(font, WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), DEBUG_TEXT_COLOR);
 }
-    }
 }

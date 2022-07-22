@@ -92,6 +92,14 @@ fill_rect :: (using rect: Rect, color: Vector4) {
     Simp.immediate_quad(x, WINDOW_HEIGHT - y, x + w, WINDOW_HEIGHT - y - h, color);
 }
 
+prepare_text :: (text: string) -> (width: s64) {
+    return Simp.prepare_text(font, text);
+}
+
+draw_prepared_text :: (x: s64, y: s64, color := Vector4.{1, 1, 1, 1}) {
+    Simp.draw_prepared_text(font, x, y, color);
+}
+
 main :: () {
     init_state();
 

@@ -62,43 +62,31 @@ gen_params_dynamic :: () {
     file_close(*file);
 }
 
-build_wasm :: (base_name: string) {
-    cmd :: (args: .. string, redirect_stdout_to_file := "", loc := #caller_location) {
-        log("[CMD] %\n", get_quoted_command_string(args));
+cmd :: (args: .. string, redirect_stdout_to_file := "", loc := #caller_location) {
+    log("[CMD] %\n", get_quoted_command_string(args));
 
-        result, output_string, error_string := run_command(..args, capture_and_return_output = redirect_stdout_to_file != "");
-        if result.exit_code {
-            if output_string then log("%", output_string);
-            if error_string then log("%", error_string);
-            compiler_report(tprint("Command failed with exit code '%'.\n", result.exit_code), loc);
-            exit(result.exit_code);
-        }
-
-        if redirect_stdout_to_file then write_entire_file(redirect_stdout_to_file, output_string);
+    result, output_string, error_string := run_command(..args, capture_and_return_output = redirect_stdout_to_file != "");
+    if result.exit_code {
+        if output_string then log("%", output_string);
+        if error_string then log("%", error_string);
+        compiler_report(tprint("Command failed with exit code '%'.\n", result.exit_code), loc);
+        exit(result.exit_code);
     }
 
-    THIRD_PARTY_PATH :: "./3rd_party";
-    LLVM_VERSION :: "13.0.0";
-    WABT_VERSION :: "1.0.29";
+    if redirect_stdout_to_file then write_entire_file(redirect_stdout_to_file, output_string);
+}
 
-    CLANG := tprint("%/clang+llvm-%-x86_64-linux-gnu-ubuntu-16.04/bin/clang", THIRD_PARTY_PATH, LLVM_VERSION);
-    WASMLD := tprint("%/clang+llvm-%-x86_64-linux-gnu-ubuntu-16.04/bin/wasm-ld", THIRD_PARTY_PATH, LLVM_VERSION);
-    WASM2WAT := tprint("%/wabt-%/bin/wasm2wat", THIRD_PARTY_PATH, WABT_VERSION);
-    WAT2WASM := tprint("%/wabt-%/bin/wat2wasm", THIRD_PARTY_PATH, WABT_VERSION);
+build_wasm :: (base_name: string) {
+    CLANG := "clang";
+    WASMLD := "wasm-ld";
+    WASM64232 := "./3rd_party/wasm64232";
 
-    LL_NAME := tprint("%.ll", base_name);
+    BC_NAME := tprint("%.bc", base_name);
     O_NAME := tprint("%.o", base_name);
-    WAT_NAME := tprint("%.wat", base_name);
-    FIXED_O_NAME := tprint("%_fixed.o", base_name);
-    FIXED_WAT_NAME := tprint("%_fixed.wat", base_name);
 
-    cmd(CLANG, "--target=wasm32", "-o", O_NAME, "-c", LL_NAME);
-    cmd(WASM2WAT, O_NAME, redirect_stdout_to_file = WAT_NAME);
-    cmd(WAT2WASM, "-r", WAT_NAME, "-o", FIXED_O_NAME);
-    cmd(WASM2WAT, FIXED_O_NAME, redirect_stdout_to_file = FIXED_WAT_NAME);
-    cmd(WASMLD, "-m", "wasm32", "--no-entry", "--export-all", "--allow-undefined", FIXED_O_NAME, "-o", "main.wasm");
-    cmd(WASM2WAT, "./main.wasm", redirect_stdout_to_file = "main.wat");
-    cmd(WAT2WASM, "main.wat", "-o", "main_fixed.wasm");
+    cmd(CLANG, "--target=wasm64", "-o", O_NAME, "-c", BC_NAME);
+    cmd(WASMLD, "-m", "wasm64", "--no-entry", "--export-all", "--allow-undefined", O_NAME, "-o", "main64.wasm");
+    cmd(WASM64232, "main64.wasm", "-o", "main32.wasm");
 }
 
 build_wasm_platform :: () {
@@ -121,7 +109,8 @@ build_wasm_platform :: () {
     /* bo.math_bounds_check                 = .OFF; */
     /* bo.null_pointer_check                = .OFF; */
     /* bo.emit_debug_info                   = .NONE; */
-    bo.llvm_options.output_llvm_ir       = true;
+    /* bo.llvm_options.output_llvm_ir       = true; */
+    bo.llvm_options.output_bitcode       = true;
     bo.llvm_options.enable_split_modules = false;
     set_build_options(bo, w);
 
@@ -158,6 +147,7 @@ build_wasm_platform :: () {
                         compiler_report(tprint("Removing the whole body of the function %. DON'T USE IT!!!", body.header.name),
                                         make_location(body),
                                         .WARNING);
+                        // TODO: replace the body of the deleted function with something that indicates at runtime that you are calling to a deleted function
                         new_statements : [..] *Code_Node;
                         body.block.statements = new_statements;
                         compiler_modify_procedure(w, body);
@@ -231,8 +221,8 @@ build_debug :: () {
     }
 
     // TODO: document how to build WASM platform
-    // build_wasm_platform();
-    build_release();
+    build_wasm_platform();
+    /* build_release(); */
     build_debug();
 
     set_build_options_dc(.{do_output=false});

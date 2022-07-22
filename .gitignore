@@ -2,6 +2,7 @@ jaibreak-*
 .build
 gen_*.jai
 *.so
-main.wasm
-main.wat
+*.wasm
+!main32.wasm
+*.wat
 *.svg
