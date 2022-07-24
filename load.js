@@ -1,6 +1,7 @@
 const NULL64 = 0n;
 let app = document.getElementById("app");
 let ctx = app.getContext("2d");
+// TODO: read the font size from param.conf somehow
 ctx.font = '37px Alegreya-Regular';
 let w = null;
 
@@ -8,15 +9,6 @@ function find_name_by_regexp(exports, prefix) {
     const re = new RegExp('^'+prefix+'_[0-9a-z]+$');
     for (let name in exports) {
         if (re.test(name)) {
-            return exports[name];
-        }
-    }
-    return null;
-}
-
-function find_name_by_prefix(exports, prefix) {
-    for (let name in exports) {
-        if (name.startsWith(prefix)) {
             return exports[name];
         }
     }
@@ -34,7 +26,6 @@ function make_environment(env) {
     });
 }
 
-let once = false;
 let prepared_text = null;
 
 function hexcolor(r, g, b, a) {
@@ -92,7 +83,6 @@ WebAssembly.instantiateStreaming(fetch('./main32.wasm'), {
         ctx.fillStyle = '#181818';
         ctx.fillRect(0, 0, 1600, 900);
         render(NULL64);
-        // TODO: read the font size from param.conf somehow
         window.requestAnimationFrame(frame);
     }
     window.requestAnimationFrame(first);

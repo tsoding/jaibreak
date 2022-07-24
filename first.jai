@@ -16,6 +16,7 @@ gen_params_static :: () {
         print("Could not open file % for writing.\n", PARAMS_STATIC_FILEPATH);
         return;
     }
+    defer file_close(*file);
     file_write(*file, tprint("// Generated from %\n", PARAMS_CONF_FILEPATH));
 
     for value, name: params {
@@ -28,7 +29,6 @@ gen_params_static :: () {
             case; assert(false, "unreachable");
         }
     }
-    file_close(*file);
 }
 
 gen_params_dynamic :: () {
@@ -103,13 +103,6 @@ build_wasm_platform :: () {
 
     bo := get_build_options(w);
     bo.output_executable_name            = "jaibreak-wasm";
-    bo.stack_trace                       = false;
-    /* bo.array_bounds_check                = .OFF; */
-    /* bo.cast_bounds_check                 = .OFF; */
-    /* bo.math_bounds_check                 = .OFF; */
-    /* bo.null_pointer_check                = .OFF; */
-    /* bo.emit_debug_info                   = .NONE; */
-    /* bo.llvm_options.output_llvm_ir       = true; */
     bo.llvm_options.output_bitcode       = true;
     bo.llvm_options.enable_split_modules = false;
     set_build_options(bo, w);
@@ -222,7 +215,7 @@ build_debug :: () {
 
     // TODO: document how to build WASM platform
     build_wasm_platform();
-    /* build_release(); */
+    build_release();
     build_debug();
 
     set_build_options_dc(.{do_output=false});

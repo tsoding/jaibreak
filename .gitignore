@@ -6,3 +6,4 @@ gen_*.jai
 !main32.wasm
 *.wat
 *.svg
+*.swp
