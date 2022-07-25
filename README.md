@@ -1,6 +1,6 @@
 # JaiBreak
 
-![thumbnail](./thumbnail.png)
+![thumbnail](./img/thumbnail.png)
 
 ## Quick Start
 

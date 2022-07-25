@@ -23,5 +23,9 @@ fill_rect :: (rect: Rect, color: Vector4) {
                    color.x, color.y, color.z, color.w);
 }
 
+set_context :: (c: *Context) #foreign wasmstub;
+
 main :: () {
+    set_context(*context);
+    init_state();
 }

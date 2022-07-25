@@ -324,6 +324,8 @@ update :: (dt: float32) {
 }
 
 // TODO: use temporary allocator in here
+// We probably have to enable Context to be able to use temporary allocator.
+// (See set_context related stuff in jai-wasm)
 score_buffer: [64]u8;
 
 int_to_string :: (x: int, data: *u8) -> int {
@@ -372,7 +374,6 @@ render :: () {
             fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
         }
     }
-    // FF3030FF
     fill_rect(bar_rect(bar_x), BAR_COLOR);
     for targets_pool if !it.dead then fill_rect(target_rect(it), it.color);
 
@@ -383,16 +384,16 @@ render :: () {
         fill_rect(make_rect(x, y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
     }
 
-    // TODO: implement conversion of int to string
     /* score_text_width := prepare_text(tprint("Score: %", score)); */
     score_text_width := prepare_text(render_score(score));
+    // TODO: coordinate system for rendering the text is inconsistent compared to fill_rect
     draw_prepared_text(SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
     if pause {
         pause_text_width := prepare_text("Pause");
         draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
     }
 #if DEBUG {
-    debug_text_width := Simp.prepare_text(font, "Debug");
-    Simp.draw_prepared_text(font, WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), DEBUG_TEXT_COLOR);
+    debug_text_width := prepare_text("Debug");
+    draw_prepared_text(WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), DEBUG_TEXT_COLOR);
 }
 }
