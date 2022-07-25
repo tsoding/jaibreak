@@ -128,6 +128,7 @@ WebAssembly.instantiateStreaming(fetch('./main32.wasm'), {
     }
     window.requestAnimationFrame(first);
 
+    // TODO: pausing does not work on WASM platform
     document.addEventListener('keydown', (e) => key_press(context, e.keyCode));
     document.addEventListener('keyup', (e) => key_release(context, e.keyCode));
 }).catch(console.error);

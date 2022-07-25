@@ -90,6 +90,11 @@ build_wasm :: (base_name: string) {
 }
 
 build_wasm_platform :: () {
+    if OS != .LINUX {
+        print("TODO: Build WASM platform is only support on Linux right now");
+        return;
+    }
+
     if !build_cpp_dynamic_lib("libwasmstub", "wasmstub.c") {
         print("Error: Could not build dynamic lib with external names");
         exit(1);
@@ -213,10 +218,10 @@ build_debug :: () {
         exit(1);
     }
 
+    build_release();
+    build_debug();
     // TODO: document how to build WASM platform
     build_wasm_platform();
-    /* build_release(); */
-    /* build_debug(); */
 
     set_build_options_dc(.{do_output=false});
 }
