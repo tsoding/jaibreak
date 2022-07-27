@@ -27,7 +27,7 @@ State :: enum {
 
 left := false;
 right := false;
-particles : [128]Particle;
+particles : [256]Particle;
 // TODO: the size must be TARGET_ROWS*TARGET_ROWS but in debug mode bot TARGET_ROWS and TARGET_ROWS are runtime values
 // Come up with more robust way to define the size of this array
 targets_pool : [100]Target;
@@ -41,6 +41,7 @@ quit: bool;
 pause: bool;
 state: State;
 score: int;
+bonus_score: int;
 // TODO: restart animation
 death_cooldown: float;
 lifes: int;
@@ -78,6 +79,7 @@ key_press :: (key: u32) {
         case #char " "; if !pause && state == .READY {
             state = .PLAY;
             proj_dy = -PROJ_SPEED;
+            // TODO: direct angle factored projectile based on the last direction
             proj_dx = PROJ_SPEED*ANGLE_FACTOR;
             if left  then proj_dx = -PROJ_SPEED;
             if right then proj_dx = PROJ_SPEED;
@@ -93,6 +95,8 @@ key_release :: (key: u32) {
 }
 
 init_state :: () {
+    bonus_score = 0;
+
     target_grid_width := (TARGET_COLS*TARGET_WIDTH + (TARGET_COLS - 1)*TARGET_PADDING_X);
     target_grid_x := WINDOW_WIDTH/2 - target_grid_width/2;
 
@@ -180,9 +184,11 @@ overlaps :: (a: Rect, b: Rect) -> bool {
 }
 
 target_hit :: (target: *Target) {
-    particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, target.color, PARTICLE_BURST_HIT_COUNT);
+    particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, target.color, PARTICLE_BURST_HIT_COUNT + bonus_score*2);
     target.dead = true;
-    score += 1;
+    // TODO: indicate how much score points you've got by showing a fading sign with the number at the point of the impact
+    score += 1 + bonus_score;
+    bonus_score += 1;
 }
 
 Collision :: enum s64 {
@@ -262,6 +268,7 @@ handle_proj_collision :: (c: Collision) {
                 }
                 proj_dx = sign(proj_dx)*PROJ_SPEED*ANGLE_FACTOR;
             }
+            bonus_score = 0;
         }
 
         case .BORDER_BOTTOM; {
