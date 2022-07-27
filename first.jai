@@ -62,21 +62,21 @@ gen_params_dynamic :: () {
     file_close(*file);
 }
 
-cmd :: (args: .. string, redirect_stdout_to_file := "", loc := #caller_location) {
-    log("[CMD] %\n", get_quoted_command_string(args));
+build_wasm :: (base_name: string) {
+    cmd :: (args: .. string, redirect_stdout_to_file := "", loc := #caller_location) {
+        log("[CMD] %\n", get_quoted_command_string(args));
 
-    result, output_string, error_string := run_command(..args, capture_and_return_output = redirect_stdout_to_file != "");
-    if result.exit_code {
-        if output_string then log("%", output_string);
-        if error_string then log("%", error_string);
-        compiler_report(tprint("Command failed with exit code '%'.\n", result.exit_code), loc);
-        exit(result.exit_code);
+        result, output_string, error_string := run_command(..args, capture_and_return_output = redirect_stdout_to_file != "");
+        if result.exit_code {
+            if output_string then log("%", output_string);
+            if error_string then log("%", error_string);
+            compiler_report(tprint("Command failed with exit code '%'.\n", result.exit_code), loc);
+            exit(result.exit_code);
+        }
+
+        if redirect_stdout_to_file then write_entire_file(redirect_stdout_to_file, output_string);
     }
 
-    if redirect_stdout_to_file then write_entire_file(redirect_stdout_to_file, output_string);
-}
-
-build_wasm :: (base_name: string) {
     CLANG := "clang";
     WASMLD := "wasm-ld";
     WASM64232 := "./3rd_party/wasm64232";
@@ -89,38 +89,7 @@ build_wasm :: (base_name: string) {
     cmd(WASM64232, "main64.wasm", "-o", "main32.wasm");
 }
 
-build_wasm_platform :: () {
-    if OS != .LINUX {
-        print("TODO: Build WASM platform is only support on Linux right now");
-        return;
-    }
-
-    if !build_cpp_dynamic_lib("libwasmstub", "wasmstub.c") {
-        print("Error: Could not build dynamic lib with external names");
-        exit(1);
-    }
-
-    w := compiler_create_workspace("Jaibreak WASM");
-    if !w {
-        print("Error: Could not create a workspace\n");
-        exit(1);
-    }
-
-    bo := get_build_options(w);
-    bo.output_executable_name            = "jaibreak-wasm";
-    bo.llvm_options.output_bitcode       = true;
-    bo.llvm_options.enable_split_modules = false;
-    set_build_options(bo, w);
-
-    compiler_begin_intercept(w);
-
-    gen_params_static();
-
-    add_build_string(tprint("DEBUG :: false;"), w);
-    add_build_file("gen_params_static.jai", w);
-    add_build_file("game.jai", w);
-    add_build_file("wasm_platform.jai", w);
-
+prepare_object_file_for_build_wasm :: (w: Workspace) -> string {
     object_file_to_translate_to_wasm := "";
     while true {
         message := compiler_wait_for_message();
@@ -145,7 +114,6 @@ build_wasm_platform :: () {
                         compiler_report(tprint("Removing the whole body of the function %. DON'T USE IT!!!", body.header.name),
                                         make_location(body),
                                         .WARNING);
-                        // TODO: replace the body of the deleted function with something that indicates at runtime that you are calling to a deleted function
                         new_statements : [..] *Code_Node;
                         body.block.statements = new_statements;
                         compiler_modify_procedure(w, body);
@@ -156,8 +124,8 @@ build_wasm_platform :: () {
             case .PHASE; {
                 phase := cast(*Message_Phase) message;
                 if phase.phase == .POST_WRITE_EXECUTABLE {
-                    assert(phase.compiler_generated_object_files.count == 1);
-                    assert(object_file_to_translate_to_wasm.count == 0);
+                    assert(phase.compiler_generated_object_files.count == 1, "The build process supports only a single object file compilation");
+                    assert(object_file_to_translate_to_wasm.count == 0, "The build process supports only a single object file compilation");
                     object_file_to_translate_to_wasm = phase.compiler_generated_object_files[0];
                 }
             }
@@ -165,11 +133,46 @@ build_wasm_platform :: () {
             case .COMPLETE; break;
         }
     }
-    assert(object_file_to_translate_to_wasm.count > 0);
 
-    build_wasm(path_strip_extension(object_file_to_translate_to_wasm));
+    return object_file_to_translate_to_wasm;
+}
+build_wasm_platform :: () {
+    if OS != .LINUX {
+        print("TODO: Build WASM platform is only support on Linux right now");
+        return;
+    }
 
+    if !build_cpp_dynamic_lib("libwasmstub", "wasmstub.c") {
+        print("Error: Could not build dynamic lib with external names");
+        exit(1);
+    }
+
+    w := compiler_create_workspace("Jaibreak WASM");
+    if !w {
+        print("Error: Could not create a workspace\n");
+        exit(1);
+    }
+
+    bo := get_build_options(w);
+    bo.output_executable_name            = "jaibreak-wasm";
+    bo.llvm_options.output_bitcode       = true;
+    bo.llvm_options.enable_split_modules = false;
+    set_build_options(bo, w);
+
+    compiler_begin_intercept(w);
+    gen_params_static();
+    add_build_string(tprint("DEBUG :: false;"), w);
+    add_build_file("gen_params_static.jai", w);
+    add_build_file("game.jai", w);
+    add_build_file("wasm_platform.jai", w);
+    object_file_to_translate_to_wasm := prepare_object_file_for_build_wasm(w);
     compiler_end_intercept(w);
+
+    if object_file_to_translate_to_wasm.count > 0 {
+        build_wasm(path_strip_extension(object_file_to_translate_to_wasm));
+    } else {
+        print("Could not generate the object file. Skipping WASM translation step...\n");
+    }
 }
 
 build_release :: () {
