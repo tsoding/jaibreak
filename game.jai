@@ -258,13 +258,7 @@ handle_proj_collision :: (c: Collision) {
                 proj_dx = bar_dx*PROJ_SPEED;
             } else {
                 sign :: (x: float) -> float {
-                    // TODO: branchless sign()
-                    if x < 0 {
-                        return -1;
-                    } else if x > 0 {
-                        return 1;
-                    }
-                    return 0;
+                    return xx (-cast(int)(x<0) + cast(int)(x>0));
                 }
                 proj_dx = sign(proj_dx)*PROJ_SPEED*ANGLE_FACTOR;
             }
