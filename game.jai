@@ -277,6 +277,7 @@ handle_proj_collision :: (c: Collision) {
             state = .DEATH;
             death_cooldown = DEATH_COOLDOWN;
             lifes = max(lifes - 1, 0);
+            bonus_score = 0;
         }
 
         case; if c >= .TARGET {
