@@ -99,7 +99,7 @@ function hexcolor(r, g, b, a) {
     return '#'+r+g+b+a;
 }
 
-WebAssembly.instantiateStreaming(fetch('./main32.wasm'), {
+WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
     "env": make_environment(std, game)
 }).then(w0 => {
     w = w0;
