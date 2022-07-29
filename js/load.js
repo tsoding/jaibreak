@@ -103,12 +103,9 @@ WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
     "env": make_environment(std, game)
 }).then(w0 => {
     w = w0;
-    const init_state  = find_name_by_regexp(w.instance.exports, "init_state");
-    const render      = find_name_by_regexp(w.instance.exports, "render");
     const update      = find_name_by_regexp(w.instance.exports, "update");
     const key_press   = find_name_by_regexp(w.instance.exports, "key_press");
     const key_release = find_name_by_regexp(w.instance.exports, "key_release");
-    const reset_temporary_storage = find_name_by_regexp(w.instance.exports, "reset_temporary_storage");
 
     w.instance.exports.main(0, NULL64);
 
@@ -120,12 +117,10 @@ WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
     function frame(timestamp) {
         const dt = (timestamp - prev)*0.001;
         prev = timestamp;
-        update(context, dt);
-        // TODO: read the background from params.conf
+        // TODO: move rendering of the background out of the platforms
         ctx.fillStyle = '#181818';
         ctx.fillRect(0, 0, 1600, 900);
-        render(context);
-        reset_temporary_storage(context);
+        update(context, dt);
         window.requestAnimationFrame(frame);
     }
     window.requestAnimationFrame(first);

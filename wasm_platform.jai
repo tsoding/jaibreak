@@ -1,3 +1,4 @@
+// TODO: rename platform_* functions to *_wasm to make it consistent with fill_rect_wasm()
 platform_prepare_text :: (data: *u8, count: s64) -> (width: s64) #foreign wasmstub;
 
 prepare_text :: (text: string) -> (width: s64) {
@@ -28,7 +29,4 @@ set_context :: (c: *Context) #foreign wasmstub;
 main :: () {
     set_context(*context);
     init_state();
-    // NOTE: we call this function in here so it does not get DCE-ed, because we call it from JavaScript from time to time.
-    // TODO: maybe reset_temporary_storage() should not be concern of the platform so we don't have to care whether it gets DCE-ed or not?
-    reset_temporary_storage();
 }

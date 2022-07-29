@@ -322,6 +322,10 @@ update :: (dt: float32) {
             }
         }
     }
+
+    render();
+
+    reset_temporary_storage();
 }
 
 int_to_string :: (x: int, data: *u8) -> int {

@@ -163,14 +163,9 @@ main :: () {
             }
         }
 
-        update(current_dt);
-        Simp.clear_render_target(BACKGROUND_COLOR.x, BACKGROUND_COLOR.y, BACKGROUND_COLOR.z, BACKGROUND_COLOR.w);
-
         #if DEBUG then clear_rect_buffer();
-        render();
-
+        Simp.clear_render_target(BACKGROUND_COLOR.x, BACKGROUND_COLOR.y, BACKGROUND_COLOR.z, BACKGROUND_COLOR.w);
+        update(current_dt);
         Simp.swap_buffers(window);
-
-        reset_temporary_storage();
     }
 }
