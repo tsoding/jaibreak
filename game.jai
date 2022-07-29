@@ -76,6 +76,7 @@ key_press :: (key: u32) {
     if key == {
         case #char "A"; left = true;
         case #char "D"; right = true;
+        case 27; pause = !pause;
         case #char " "; if !pause && state == .READY {
             state = .PLAY;
             proj_dy = -PROJ_SPEED;

@@ -126,6 +126,7 @@ main :: () {
         KEY_D :: #run get_key_code(#char "d");
         KEY_SPACE :: #run get_key_code(#char " ");
 
+        // TODO: use key_press() and key_release() in the SIMP platform
         for event : events_this_frame {
             if event.type == {
                 case .QUIT; {
