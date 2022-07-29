@@ -28,7 +28,7 @@ State :: enum {
 left := false;
 right := false;
 particles : [256]Particle;
-// TODO: the size must be TARGET_ROWS*TARGET_ROWS but in debug mode bot TARGET_ROWS and TARGET_ROWS are runtime values
+// TODO: the size must be TARGET_ROWS*TARGET_ROWS but in debug mode both TARGET_ROWS and TARGET_ROWS are runtime values
 // Come up with more robust way to define the size of this array
 targets_pool : [100]Target;
 bar_x:   float32;
@@ -324,11 +324,6 @@ update :: (dt: float32) {
     }
 }
 
-// TODO: use temporary allocator in here
-// We probably have to enable Context to be able to use temporary allocator.
-// (See set_context related stuff in jai-wasm)
-score_buffer: [64]u8;
-
 int_to_string :: (x: int, data: *u8) -> int {
     assert(x >= 0);
     if (x == 0) {
@@ -348,6 +343,11 @@ int_to_string :: (x: int, data: *u8) -> int {
 }
 
 render_score :: (x: int) -> string {
+    SCORE_BUFFER_CAP :: 64;
+    score_buffer : []u8;
+    score_buffer.data = talloc(SCORE_BUFFER_CAP);
+    score_buffer.count = SCORE_BUFFER_CAP;
+
     score_label :: "Score: ";
     memcpy(score_buffer.data, score_label.data, score_label.count);
     count := int_to_string(x, score_buffer.data + score_label.count);

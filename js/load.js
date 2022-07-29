@@ -108,6 +108,7 @@ WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
     const update      = find_name_by_regexp(w.instance.exports, "update");
     const key_press   = find_name_by_regexp(w.instance.exports, "key_press");
     const key_release = find_name_by_regexp(w.instance.exports, "key_release");
+    const reset_temporary_storage = find_name_by_regexp(w.instance.exports, "reset_temporary_storage");
 
     w.instance.exports.main(0, NULL64);
 
@@ -124,6 +125,7 @@ WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
         ctx.fillStyle = '#181818';
         ctx.fillRect(0, 0, 1600, 900);
         render(context);
+        reset_temporary_storage(context);
         window.requestAnimationFrame(frame);
     }
     window.requestAnimationFrame(first);

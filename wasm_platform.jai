@@ -28,4 +28,7 @@ set_context :: (c: *Context) #foreign wasmstub;
 main :: () {
     set_context(*context);
     init_state();
+    // NOTE: we call this function in here so it does not get DCE-ed, because we call it from JavaScript from time to time.
+    // TODO: maybe reset_temporary_storage() should not be concern of the platform so we don't have to care whether it gets DCE-ed or not?
+    reset_temporary_storage();
 }
