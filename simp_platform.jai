@@ -165,7 +165,7 @@ main :: () {
         }
 
         #if DEBUG then clear_rect_buffer();
-        Simp.clear_render_target(BACKGROUND_COLOR.x, BACKGROUND_COLOR.y, BACKGROUND_COLOR.z, BACKGROUND_COLOR.w);
+        Simp.clear_render_target(0, 0, 0, 0);
         update(current_dt);
         Simp.swap_buffers(window);
     }

@@ -117,9 +117,6 @@ WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
     function frame(timestamp) {
         const dt = (timestamp - prev)*0.001;
         prev = timestamp;
-        // TODO: move rendering of the background out of the platforms
-        ctx.fillStyle = '#181818';
-        ctx.fillRect(0, 0, 1600, 900);
         update(context, dt);
         window.requestAnimationFrame(frame);
     }

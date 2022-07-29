@@ -364,6 +364,8 @@ render_score :: (x: int) -> string {
 }
 
 render :: () {
+    fill_rect(make_rect(0, 0, xx WINDOW_WIDTH, xx WINDOW_HEIGHT), BACKGROUND_COLOR);
+
     for particles {
         if it.lifetime > 0 {
             size := it.size*PARTICLE_BASE_SIZE;
