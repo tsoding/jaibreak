@@ -77,13 +77,13 @@ const game = {
     },
     "random_get_zero_to_one": Math.random,
     "random_get_within_range": (a, b) => a + Math.random()*(b - a),
-    "platform_prepare_text": (data, count) => {
+    "prepare_text_wasm": (data, count) => {
         const buffer = w.instance.exports.memory.buffer;
         const text = new TextDecoder().decode(new Uint8Array(buffer, Number(data), Number(count)));
         prepared_text = text;
         return BigInt(Math.floor(ctx.measureText(text).width));
     },
-    "platform_draw_prepared_text": (x, y, r, g, b, a) => {
+    "draw_prepared_text_wasm": (x, y, r, g, b, a) => {
         ctx.fillStyle = hexcolor(r, g, b, a);
         ctx.fillText(prepared_text, Number(x), app.height - Number(y));
     }
