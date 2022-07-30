@@ -389,9 +389,9 @@ render :: () {
         }
     }
 
+    for targets_pool if !it.dead then fill_rect(target_rect(it), it.color);
     fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
     fill_rect(bar_rect(bar_x), BAR_COLOR);
-    for targets_pool if !it.dead then fill_rect(target_rect(it), it.color);
 
     // TODO: make the score and lifes semi-transparent when the projectile cross them
     for i: 0..lifes-1 {
