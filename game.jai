@@ -28,7 +28,7 @@ State :: enum {
 left := false;
 right := false;
 particles : [256]Particle;
-// TODO: the size must be TARGET_ROWS*TARGET_ROWS but in debug mode bot TARGET_ROWS and TARGET_ROWS are runtime values
+// TODO: the size must be TARGET_ROWS*TARGET_ROWS but in debug mode both TARGET_ROWS and TARGET_ROWS are runtime values
 // Come up with more robust way to define the size of this array
 targets_pool : [100]Target;
 bar_x:   float32;
@@ -76,6 +76,7 @@ key_press :: (key: u32) {
     if key == {
         case #char "A"; left = true;
         case #char "D"; right = true;
+        case 27; pause = !pause;
         case #char " "; if !pause && state == .READY {
             state = .PLAY;
             proj_dy = -PROJ_SPEED;
@@ -276,6 +277,7 @@ handle_proj_collision :: (c: Collision) {
             state = .DEATH;
             death_cooldown = DEATH_COOLDOWN;
             lifes = max(lifes - 1, 0);
+            bonus_score = 0;
         }
 
         case; if c >= .TARGET {
@@ -322,12 +324,11 @@ update :: (dt: float32) {
             }
         }
     }
-}
 
-// TODO: use temporary allocator in here
-// We probably have to enable Context to be able to use temporary allocator.
-// (See set_context related stuff in jai-wasm)
-score_buffer: [64]u8;
+    render();
+
+    reset_temporary_storage();
+}
 
 int_to_string :: (x: int, data: *u8) -> int {
     assert(x >= 0);
@@ -348,6 +349,11 @@ int_to_string :: (x: int, data: *u8) -> int {
 }
 
 render_score :: (x: int) -> string {
+    SCORE_BUFFER_CAP :: 64;
+    score_buffer : []u8;
+    score_buffer.data = talloc(SCORE_BUFFER_CAP);
+    score_buffer.count = SCORE_BUFFER_CAP;
+
     score_label :: "Score: ";
     memcpy(score_buffer.data, score_label.data, score_label.count);
     count := int_to_string(x, score_buffer.data + score_label.count);
@@ -359,6 +365,8 @@ render_score :: (x: int) -> string {
 }
 
 render :: () {
+    fill_rect(make_rect(0, 0, xx WINDOW_WIDTH, xx WINDOW_HEIGHT), BACKGROUND_COLOR);
+
     for particles {
         if it.lifetime > 0 {
             size := it.size*PARTICLE_BASE_SIZE;

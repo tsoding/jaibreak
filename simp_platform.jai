@@ -126,6 +126,7 @@ main :: () {
         KEY_D :: #run get_key_code(#char "d");
         KEY_SPACE :: #run get_key_code(#char " ");
 
+        // TODO: use key_press() and key_release() in the SIMP platform
         for event : events_this_frame {
             if event.type == {
                 case .QUIT; {
@@ -163,14 +164,9 @@ main :: () {
             }
         }
 
-        update(current_dt);
-        Simp.clear_render_target(BACKGROUND_COLOR.x, BACKGROUND_COLOR.y, BACKGROUND_COLOR.z, BACKGROUND_COLOR.w);
-
         #if DEBUG then clear_rect_buffer();
-        render();
-
+        Simp.clear_render_target(0, 0, 0, 0);
+        update(current_dt);
         Simp.swap_buffers(window);
-
-        reset_temporary_storage();
     }
 }

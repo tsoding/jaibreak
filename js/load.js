@@ -77,13 +77,13 @@ const game = {
     },
     "random_get_zero_to_one": Math.random,
     "random_get_within_range": (a, b) => a + Math.random()*(b - a),
-    "platform_prepare_text": (data, count) => {
+    "prepare_text_wasm": (data, count) => {
         const buffer = w.instance.exports.memory.buffer;
         const text = new TextDecoder().decode(new Uint8Array(buffer, Number(data), Number(count)));
         prepared_text = text;
         return BigInt(Math.floor(ctx.measureText(text).width));
     },
-    "platform_draw_prepared_text": (x, y, r, g, b, a) => {
+    "draw_prepared_text_wasm": (x, y, r, g, b, a) => {
         ctx.fillStyle = hexcolor(r, g, b, a);
         ctx.fillText(prepared_text, Number(x), app.height - Number(y));
     }
@@ -103,8 +103,6 @@ WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
     "env": make_environment(std, game)
 }).then(w0 => {
     w = w0;
-    const init_state  = find_name_by_regexp(w.instance.exports, "init_state");
-    const render      = find_name_by_regexp(w.instance.exports, "render");
     const update      = find_name_by_regexp(w.instance.exports, "update");
     const key_press   = find_name_by_regexp(w.instance.exports, "key_press");
     const key_release = find_name_by_regexp(w.instance.exports, "key_release");
@@ -120,15 +118,10 @@ WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
         const dt = (timestamp - prev)*0.001;
         prev = timestamp;
         update(context, dt);
-        // TODO: read the background from params.conf
-        ctx.fillStyle = '#181818';
-        ctx.fillRect(0, 0, 1600, 900);
-        render(context);
         window.requestAnimationFrame(frame);
     }
     window.requestAnimationFrame(first);
 
-    // TODO: pausing does not work on WASM platform
-    document.addEventListener('keydown', (e) => key_press(context, e.keyCode));
-    document.addEventListener('keyup', (e) => key_release(context, e.keyCode));
+    document.addEventListener('keydown', (e) => { key_press(context, e.keyCode) });
+    document.addEventListener('keyup', (e) => { key_release(context, e.keyCode) });
 }).catch(console.error);
