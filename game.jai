@@ -40,8 +40,6 @@ pause: bool;
 state: State;
 score: int;
 bonus_score: int;
-// TODO: restart animation
-death_cooldown: float;
 lifes: int;
 // TODO: victory
 // TODO: game over
@@ -273,9 +271,12 @@ handle_proj_collision :: (c: Collision) {
         case .BORDER_BOTTOM; {
             particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, make_vector4(1, 1, 1, 1), PARTICLE_BURST_DEATH_COUNT);
             state = .DEATH;
-            death_cooldown = DEATH_COOLDOWN;
-            lifes = max(lifes - 1, 0);
             bonus_score = 0;
+            lifes = max(lifes - 1, 0);
+            proj_x = LIFES_PADDING_RIGHT + lifes*(LIFE_SIZE + LIFES_PADDING);
+            proj_y = LIFES_PADDING_TOP;
+            proj_dx = 0;
+            proj_dy = 0;
         }
 
         case; if c >= .TARGET {
@@ -294,6 +295,8 @@ update :: (dt: float32) {
 
         if state == {
             case .READY; {
+                proj_dx = 0;
+                proj_dy = 0;
                 proj_x = bar_x + BAR_LEN/2 - PROJ_SIZE/2;
                 proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
             }
@@ -304,12 +307,24 @@ update :: (dt: float32) {
             }
 
             case .DEATH; {
-                death_cooldown -= dt;
-                if death_cooldown <= 0 then state = .READY;
-                proj_dx = 0;
-                proj_dy = 0;
-                proj_x = bar_x + BAR_LEN/2 - PROJ_SIZE/2;
-                proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
+                anchor_x := bar_x + BAR_LEN/2 - PROJ_SIZE/2;
+                anchor_y := (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
+                proj_dx = anchor_x - proj_x;
+                proj_dy = anchor_y - proj_y;
+                len := sqrt(proj_dx*proj_dx + proj_dy*proj_dy);
+                if len > 0 {
+                    proj_dx /= len;
+                    proj_dy /= len;
+                    proj_dx *= RESTART_VELOCITY;
+                    proj_dy *= RESTART_VELOCITY;
+                }
+                proj_x += proj_dx*dt;
+                proj_y += proj_dy*dt;
+                dx := proj_x - anchor_x;
+                dy := proj_y - anchor_y;
+                if dx*dx + dy*dy < RESTART_DISTANCE*RESTART_DISTANCE {
+                    state = .READY;
+                }
             }
         }
 
@@ -374,13 +389,7 @@ render :: () {
         }
     }
 
-    if state == {
-        case .READY; #through;
-        case .PLAY; {
-            rect := proj_rect(proj_x, proj_y);
-            fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
-        }
-    }
+    fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
     fill_rect(bar_rect(bar_x), BAR_COLOR);
     for targets_pool if !it.dead then fill_rect(target_rect(it), it.color);
 

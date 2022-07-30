@@ -73,6 +73,7 @@ const std = {
     },
     "fabs": Math.abs,
     "powf": Math.pow,
+    "sqrtf": Math.sqrt,
     "set_context": (c) => context = c,
 };
 
