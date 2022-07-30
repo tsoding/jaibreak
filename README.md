@@ -13,8 +13,7 @@ $ ./jaibreak
 
 ## Controls
 
-- <kbd>←</kbd>/<kbd>→</kbd> — move bar left/right
-- <kbd>ESC</kbd> — toggle pause
+- <kbd>A</kbd>/<kbd>D</kbd> — move bar left/right
 - <kbd>SPACE</kbd> — release the "ball"
 
 ### Debug Build
