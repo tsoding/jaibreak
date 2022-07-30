@@ -25,7 +25,34 @@ fill_rect :: (rect: Rect, color: Vector4) {
 
 set_context :: (c: *Context) #foreign wasmstub;
 
+__heap_base : *void;
+heap_size := 0;
+
+set_heap_base :: (heap_base_from_js: *void) #no_context {
+    __heap_base = heap_base_from_js;
+}
+
+// TODO: heap_base_alloc is really dumb
+// It would be interesting to implement a proper malloc on __heap_base
+heap_base_alloc :: (mode: Allocator_Mode, size: s64, old_size: s64, old_memory: *void, allocator_data: *void) -> *void {
+    if mode == {
+        case .RESIZE; #through;
+        case .ALLOCATE; if (old_size < size) {
+            new_memory := __heap_base + heap_size;
+            heap_size += size;
+            memcpy(new_memory, old_memory, old_size);
+            return new_memory;
+        } else {
+            return old_memory;
+        }
+        case .FREE; {
+            return null;
+        }
+    }
+}
+
 main :: () {
     set_context(*context);
+    context.allocator = .{heap_base_alloc, null};
     init_state();
 }

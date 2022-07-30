@@ -64,6 +64,13 @@ const std = {
         bytes.fill(c);
         return s;
     },
+    "memcpy": (dest_ptr, src_ptr, n) => {
+        const buffer = w.instance.exports.memory.buffer;
+        const src = new Uint8Array(buffer, Number(src_ptr), Number(n));
+        const dest = new Uint8Array(buffer, Number(dest_ptr), Number(n));
+        dest.set(src);
+        return dest_ptr;
+    },
     "fabs": Math.abs,
     "powf": Math.pow,
     "set_context": (c) => context = c,
@@ -106,8 +113,13 @@ WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
     const update      = find_name_by_regexp(w.instance.exports, "update");
     const key_press   = find_name_by_regexp(w.instance.exports, "key_press");
     const key_release = find_name_by_regexp(w.instance.exports, "key_release");
+    const set_heap_base = find_name_by_regexp(w.instance.exports, "set_heap_base");
 
-    w.instance.exports.main(0, NULL64);
+    set_heap_base(w.instance.exports.__heap_base.value);
+    w.instance.exports.main(
+        0, //argc
+        NULL64 //argv
+    );
 
     let prev = null;
     function first(timestamp) {

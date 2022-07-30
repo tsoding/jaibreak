@@ -28,9 +28,7 @@ State :: enum {
 left := false;
 right := false;
 particles : [256]Particle;
-// TODO: the size must be TARGET_ROWS*TARGET_ROWS but in debug mode both TARGET_ROWS and TARGET_ROWS are runtime values
-// Come up with more robust way to define the size of this array
-targets_pool : [100]Target;
+targets_pool : [..]Target;
 bar_x:   float32;
 bar_dx:  float32;
 proj_x:  float32;
@@ -118,7 +116,7 @@ init_state :: () {
             g2    := lerp(green, blue, (t - level)/(1 - level));
             target.color = linear_to_srgb(c*g1 + (1 - c)*g2);
 
-            targets_pool[row*TARGET_COLS + col] = target;
+            array_add(*targets_pool, target);
         }
     }
 
