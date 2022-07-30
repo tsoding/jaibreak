@@ -21,7 +21,7 @@ Particle :: struct {
 State :: enum {
     READY;
     PLAY;
-    DEATH;
+    RESTART;
     GAMEOVER;
 }
 
@@ -122,9 +122,11 @@ init_state :: () {
     bar_dx = 0;
     quit = false;
     pause = false;
-    state = .READY;
+    state = .RESTART;
     score = 0;
     lifes = 3;
+    proj_x = LIFES_PADDING_RIGHT + lifes*(LIFE_SIZE + LIFES_PADDING);
+    proj_y = LIFES_PADDING_TOP;
 }
 
 Rect :: struct {
@@ -270,7 +272,7 @@ handle_proj_collision :: (c: Collision) {
 
         case .BORDER_BOTTOM; {
             particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, make_vector4(1, 1, 1, 1), PARTICLE_BURST_DEATH_COUNT);
-            state = .DEATH;
+            state = .RESTART;
             bonus_score = 0;
             lifes = max(lifes - 1, 0);
             proj_x = LIFES_PADDING_RIGHT + lifes*(LIFE_SIZE + LIFES_PADDING);
@@ -306,7 +308,7 @@ update :: (dt: float32) {
                 handle_proj_collision(vert_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
             }
 
-            case .DEATH; {
+            case .RESTART; {
                 anchor_x := bar_x + BAR_LEN/2 - PROJ_SIZE/2;
                 anchor_y := (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
                 proj_dx = anchor_x - proj_x;
@@ -323,6 +325,7 @@ update :: (dt: float32) {
                 dx := proj_x - anchor_x;
                 dy := proj_y - anchor_y;
                 if dx*dx + dy*dy < RESTART_DISTANCE*RESTART_DISTANCE {
+                    particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
                     state = .READY;
                 }
             }
