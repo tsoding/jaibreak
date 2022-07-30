@@ -122,6 +122,10 @@ WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
     }
     window.requestAnimationFrame(first);
 
-    document.addEventListener('keydown', (e) => { key_press(context, e.keyCode) });
-    document.addEventListener('keyup', (e) => { key_release(context, e.keyCode) });
+    document.addEventListener('keydown', (e) => {
+        key_press(context, e.keyCode);
+    });
+    document.addEventListener('keyup', (e) => {
+        key_release(context, e.keyCode);
+    });
 }).catch(console.error);

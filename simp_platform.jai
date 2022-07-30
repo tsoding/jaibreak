@@ -6,7 +6,6 @@
 #import "File";
 Simp :: #import "Simp";
 
-// TODO: introduce logical size of the device (similar to SDL's one)
 TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
 
 font: *Simp.Dynamic_Font;
@@ -81,6 +80,7 @@ font: *Simp.Dynamic_Font;
     }
 }
 
+// TODO: introduce logical size of the device (similar to SDL's one)
 fill_rect :: (using rect: Rect, color: Vector4) {
     #if DEBUG {
         colored_rect : Colored_Rect = ---;
@@ -122,11 +122,6 @@ main :: () {
 
         update_window_events();
 
-        KEY_A :: #run get_key_code(#char "a");
-        KEY_D :: #run get_key_code(#char "d");
-        KEY_SPACE :: #run get_key_code(#char " ");
-
-        // TODO: use key_press() and key_release() in the SIMP platform
         for event : events_this_frame {
             if event.type == {
                 case .QUIT; {
@@ -135,30 +130,24 @@ main :: () {
                 }
 
                 case .KEYBOARD; if input_application_has_focus {
-                    if event.key_code == {
-                        case .ARROW_LEFT; #through; case KEY_A; left  = event.key_pressed != 0;
-                        case .ARROW_RIGHT; #through; case KEY_D; right = event.key_pressed != 0;
-                        case KEY_SPACE; if !pause && state == .READY && event.key_pressed {
-                            state = .PLAY;
-                            proj_dy = -PROJ_SPEED;
-                            proj_dx = PROJ_SPEED*ANGLE_FACTOR;
-                            if left  then proj_dx = -PROJ_SPEED;
-                            if right then proj_dx = PROJ_SPEED;
-                        }
-                        case .ESCAPE; if event.key_pressed then pause = !pause;
-                        case .F5; #if DEBUG {
-                            if event.key_pressed {
+                    #if DEBUG {
+                        if event.key_code == {
+                            case .F5; if event.key_pressed {
                                 sync_param_vars();
                                 Simp.release_font(font);
                                 font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
                             }
-                        }
 
-                        case .F3; #if DEBUG {
-                            if event.key_pressed {
+                            case .F3; if event.key_pressed {
                                 save_rect_buffer_as_svg();
                             }
                         }
+                    }
+
+                    if event.key_pressed {
+                        key_press(cast(u32) event.key_code);
+                    } else {
+                        key_release(cast(u32) event.key_code);
                     }
                 }
             }
