@@ -15,7 +15,7 @@ Particle :: struct {
     dy: float32;
     size: float32 = 1.0;
     lifetime: float32;
-    color: Vector4 = .{.9, 0, 0, 1};
+    color: Vector4;
 }
 
 State :: enum {
@@ -39,6 +39,8 @@ quit: bool;
 pause: bool;
 state: State;
 score: int;
+restart_cooldown: float;
+restart_velocity: float;
 bonus_score: int;
 lifes: int;
 // TODO: victory
@@ -127,6 +129,7 @@ init_state :: () {
     lifes = 3;
     proj_x = LIFES_PADDING_RIGHT + lifes*(LIFE_SIZE + LIFES_PADDING);
     proj_y = LIFES_PADDING_TOP;
+    restart_cooldown = RESTART_COOLDOWN;
 }
 
 Rect :: struct {
@@ -279,6 +282,8 @@ handle_proj_collision :: (c: Collision) {
             proj_y = LIFES_PADDING_TOP;
             proj_dx = 0;
             proj_dy = 0;
+            restart_cooldown = RESTART_COOLDOWN;
+            restart_velocity = 0;
         }
 
         case; if c >= .TARGET {
@@ -308,17 +313,20 @@ update :: (dt: float32) {
                 handle_proj_collision(vert_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
             }
 
-            case .RESTART; {
+            case .RESTART; if restart_cooldown > 0 {
+                restart_cooldown -= dt;
+            } else {
                 anchor_x := bar_x + BAR_LEN/2 - PROJ_SIZE/2;
                 anchor_y := (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
-                proj_dx = anchor_x - proj_x;
-                proj_dy = anchor_y - proj_y;
+                proj_dx := anchor_x - proj_x;
+                proj_dy := anchor_y - proj_y;
                 len := sqrt(proj_dx*proj_dx + proj_dy*proj_dy);
                 if len > 0 {
                     proj_dx /= len;
                     proj_dy /= len;
-                    proj_dx *= RESTART_VELOCITY;
-                    proj_dy *= RESTART_VELOCITY;
+                    restart_velocity += RESTART_ACCELERATION*dt;
+                    proj_dx *= restart_velocity;
+                    proj_dy *= restart_velocity;
                 }
                 proj_x += proj_dx*dt;
                 proj_y += proj_dy*dt;
