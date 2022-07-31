@@ -2,8 +2,7 @@
 #import "Math";
 
 Target :: struct {
-    x: float32;
-    y: float32;
+    position: Vector2;
     color: Vector4;
     dead: bool;
 }
@@ -100,9 +99,9 @@ init_state :: () {
     for row: 0..TARGET_ROWS-1 {
         for col: 0..TARGET_COLS-1 {
             target: Target = ---;
-            target.x     = xx (target_grid_x + (TARGET_WIDTH + TARGET_PADDING_X)*col);
-            target.y     = xx (TARGET_GRID_Y + (TARGET_HEIGHT + TARGET_PADDING_Y)*row);
-            target.dead  = false;
+            target.position.x = xx (target_grid_x + (TARGET_WIDTH + TARGET_PADDING_X)*col);
+            target.position.y = xx (TARGET_GRID_Y + (TARGET_HEIGHT + TARGET_PADDING_Y)*row);
+            target.dead       = false;
 
             red   := srgb_to_linear(make_vector4(1, .18, .18, 1));
             green := srgb_to_linear(make_vector4(.18, 1, .18, 1));
@@ -146,13 +145,8 @@ make_rect :: (x: float32, y: float32, w: float32, h: float32) -> Rect {
     return result;
 }
 
-target_rect :: (target: Target) -> Rect {
-    result : Rect = ---;
-    result.x = target.x;
-    result.y = target.y;
-    result.w = TARGET_WIDTH;
-    result.h = TARGET_HEIGHT;
-    return result;
+target_rect :: (using target: Target) -> Rect {
+    return make_rect(position.x, position.y, TARGET_WIDTH, TARGET_HEIGHT);
 }
 
 rect_center :: (using rect: Rect) -> Vector2 {
