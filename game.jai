@@ -8,11 +8,9 @@ Target :: struct {
 }
 
 Particle :: struct {
-    x: float32;
-    y: float32;
-    dx: float32;
-    dy: float32;
-    size: float32 = 1.0;
+    position: Vector2;
+    velocity: Vector2;
+    size_factor: float32 = 1.0;
     lifetime: float32;
     color: Vector4;
 }
@@ -42,24 +40,22 @@ bonus_score: int;
 lifes: int;
 // TODO: victory
 // TODO: game over
-
+// TODO: tutorial
 // TODO: speeding up the ball over time
 
 particle_burst :: (position: Vector2, color: Vector4, count: int) {
-    for 0..count-1 particle_emit(position.x, position.y, color);
+    for 0..count-1 particle_emit(position, color);
 }
 
 // TODO: gravity for particles
-particle_emit :: (x: float32, y: float32, color: Vector4) {
+particle_emit :: (position: Vector2, color: Vector4) {
     for * particles {
         if it.lifetime <= 0 {
-            it.x = x;
-            it.y = y;
             angle := random_get_zero_to_one()*2*PI;
             t := random_get_within_range(0.5, 1.5);
-            it.dx = cos(angle)*PARTICLE_BASE_VELOCITY*t;
-            it.dy = sin(angle)*PARTICLE_BASE_VELOCITY*t;
-            it.size = random_get_within_range(0.5, 1.5);
+            it.position = position;
+            it.velocity = make_vector2(cos(angle), sin(angle))*PARTICLE_BASE_VELOCITY*t;
+            it.size_factor = random_get_within_range(0.5, 1.5);
             it.color = color;
             it.lifetime = PARTICLE_LIFETIME;
             return;
@@ -134,6 +130,10 @@ Rect :: struct {
     y: float32;
     w: float32;
     h: float32;
+}
+
+make_rect :: (position: Vector2, size: Vector2) -> Rect {
+    return make_rect(position.x, position.y, size.x, size.y);
 }
 
 make_rect :: (x: float32, y: float32, w: float32, h: float32) -> Rect {
@@ -213,51 +213,51 @@ Collision :: enum s64 {
     TARGET;
 }
 
-horz_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: float32, h: float32, dt: float32) -> Collision {
-    nx := <<x + <<dx*dt;
+horz_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: float32) -> Collision {
+    nx := position.x + velocity.x*dt;
     if nx < 0 {
-        <<dx *= -1;
+        velocity.x *= -1;
         return .BORDER_LEFT;
     }
-    if nx + w > xx WINDOW_WIDTH {
-        <<dx *= -1;
+    if nx + size.x > xx WINDOW_WIDTH {
+        velocity.x *= -1;
         return .BORDER_RIGHT;
     }
-    if overlaps(make_rect(nx, <<y, w, h), bar_rect(bar_x)) {
-        <<dx *= -1;
+    if overlaps(make_rect(nx, position.y, size.x, size.y), bar_rect(bar_x)) {
+        velocity.x *= -1;
         return .BAR;
     }
     for * targets_pool {
-        if !it.dead && overlaps(make_rect(nx, <<y, w, h), target_rect(it)) {
-            <<dx *= -1;
+        if !it.dead && overlaps(make_rect(nx, position.y, size.x, size.y), target_rect(it)) {
+            velocity.x *= -1;
             return xx (xx Collision.TARGET + it_index);
         }
     }
-    <<x = nx;
+    position.x = nx;
     return .NO;
 }
 
-vert_collision :: (x: *float32, y: *float32, dx: *float32, dy: *float32, w: float32, h: float32, dt: float32) -> Collision {
-    ny := <<y + <<dy*dt;
+vert_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: float32) -> Collision {
+    ny := position.y + velocity.y*dt;
     if ny < 0 {
-        <<dy *= -1;
+        velocity.y *= -1;
         return .BORDER_TOP;
     }
-    if ny + w > xx WINDOW_HEIGHT {
-        <<dy *= -1;
+    if ny + size.y > xx WINDOW_HEIGHT {
+        velocity.y *= -1;
         return .BORDER_BOTTOM;
     }
-    if overlaps(make_rect(<<x, ny, w, h), bar_rect(bar_x)) {
-        <<dy *= -1;
+    if overlaps(make_rect(position.x, ny, size.x, size.y), bar_rect(bar_x)) {
+        velocity.y *= -1;
         return .BAR;
     }
     for *targets_pool {
-        if !it.dead && overlaps(make_rect(<<x, ny, w, h), target_rect(it)) {
-            <<dy *= -1;
+        if !it.dead && overlaps(make_rect(position.x, ny, size.x, size.y), target_rect(it)) {
+            velocity.y *= -1;
             return xx (xx Collision.TARGET + it_index);
         }
     }
-    <<y = ny;
+    position.y = ny;
     return .NO;
 }
 
@@ -316,8 +316,8 @@ update :: (dt: float32) {
             }
 
             case .PLAY; {
-                handle_proj_collision(horz_collision(*proj_position.x, *proj_position.y, *proj_velocity.x, *proj_velocity.y, PROJ_SIZE, PROJ_SIZE, dt));
-                handle_proj_collision(vert_collision(*proj_position.x, *proj_position.y, *proj_velocity.x, *proj_velocity.y, PROJ_SIZE, PROJ_SIZE, dt));
+                handle_proj_collision(horz_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
+                handle_proj_collision(vert_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
             }
 
             case .RESTART; if restart_cooldown > 0 {
@@ -341,9 +341,9 @@ update :: (dt: float32) {
 
         for * particles {
             if it.lifetime > 0 {
-                size := it.size*PARTICLE_BASE_SIZE;
-                horz_collision(*it.x, *it.y, *it.dx, *it.dy, size, size, dt);
-                vert_collision(*it.x, *it.y, *it.dx, *it.dy, size, size, dt);
+                size := it.size_factor*make_vector2(PARTICLE_BASE_SIZE, PARTICLE_BASE_SIZE);
+                horz_collision(*it.position, *it.velocity, size, dt);
+                vert_collision(*it.position, *it.velocity, size, dt);
                 it.lifetime -= dt;
             }
         }
@@ -393,10 +393,10 @@ render :: () {
 
     for particles {
         if it.lifetime > 0 {
-            size := it.size*PARTICLE_BASE_SIZE;
+            size := make_vector2(PARTICLE_BASE_SIZE, PARTICLE_BASE_SIZE)*it.size_factor;
             color := it.color;
             color.w = it.lifetime/PARTICLE_LIFETIME;
-            fill_rect(make_rect(it.x, it.y, size, size), color);
+            fill_rect(make_rect(it.position, size), color);
         }
     }
 
