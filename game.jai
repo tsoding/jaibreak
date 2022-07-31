@@ -31,10 +31,8 @@ particles : [256]Particle;
 targets_pool : [..]Target;
 bar_x:   float32;
 bar_dx:  float32;
-proj_x:  float32;
-proj_y:  float32;
-proj_dx: float32;
-proj_dy: float32;
+proj_position: Vector2;
+proj_velocity: Vector2;
 quit: bool;
 pause: bool;
 state: State;
@@ -48,8 +46,8 @@ lifes: int;
 
 // TODO: speeding up the ball over time
 
-particle_burst :: (x: float32, y: float32, color: Vector4, count: int) {
-    for 0..count-1 particle_emit(x, y, color);
+particle_burst :: (position: Vector2, color: Vector4, count: int) {
+    for 0..count-1 particle_emit(position.x, position.y, color);
 }
 
 // TODO: gravity for particles
@@ -77,11 +75,11 @@ key_press :: (key: u32) {
         case 27; pause = !pause;
         case #char " "; if !pause && state == .READY {
             state = .PLAY;
-            proj_dy = -PROJ_SPEED;
             // TODO: direct angle factored projectile based on the last direction
-            proj_dx = PROJ_SPEED*ANGLE_FACTOR;
-            if left  then proj_dx = -PROJ_SPEED;
-            if right then proj_dx = PROJ_SPEED;
+            proj_velocity.x = PROJ_SPEED*ANGLE_FACTOR;
+            proj_velocity.y = -PROJ_SPEED;
+            if left  then proj_velocity.x = -PROJ_SPEED;
+            if right then proj_velocity.x = PROJ_SPEED;
         }
     }
 }
@@ -127,8 +125,8 @@ init_state :: () {
     state = .RESTART;
     score = 0;
     lifes = 3;
-    proj_x = LIFES_PADDING_RIGHT + lifes*(LIFE_SIZE + LIFES_PADDING);
-    proj_y = LIFES_PADDING_TOP;
+    proj_position.x = LIFES_PADDING_RIGHT + lifes*(LIFE_SIZE + LIFES_PADDING);
+    proj_position.y = LIFES_PADDING_TOP;
     restart_cooldown = RESTART_COOLDOWN;
 }
 
@@ -157,6 +155,18 @@ target_rect :: (target: Target) -> Rect {
     return result;
 }
 
+rect_center :: (using rect: Rect) -> Vector2 {
+    return make_vector2(x + w/2, y + h/2);
+}
+
+proj_center :: () -> Vector2 {
+    return rect_center(proj_rect(proj_position));
+}
+
+proj_rect :: (using position: Vector2) -> Rect {
+    return proj_rect(x, y);
+}
+
 proj_rect :: (x: float32, y: float32) -> Rect {
     result : Rect = ---;
     result.x = x;
@@ -164,6 +174,12 @@ proj_rect :: (x: float32, y: float32) -> Rect {
     result.w = PROJ_SIZE;
     result.h = PROJ_SIZE;
     return result;
+}
+
+bar_anchor :: (x: float) -> Vector2 {
+    anchor_x := x + BAR_LEN/2 - PROJ_SIZE/2;
+    anchor_y := (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
+    return make_vector2(anchor_x, anchor_y);
 }
 
 bar_rect :: (x: float32) -> Rect {
@@ -186,7 +202,7 @@ overlaps :: (a: Rect, b: Rect) -> bool {
 }
 
 target_hit :: (target: *Target) {
-    particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, target.color, PARTICLE_BURST_HIT_COUNT + bonus_score*2);
+    particle_burst(proj_center(), target.color, PARTICLE_BURST_HIT_COUNT + bonus_score*2);
     target.dead = true;
     // TODO: indicate how much score points you've got by showing a fading sign with the number at the point of the impact
     score += 1 + bonus_score;
@@ -260,28 +276,27 @@ bar_collision :: (dt: float32, obstacle: Rect) {
 handle_proj_collision :: (c: Collision) {
     if c == {
         case .BAR; {
-            bar_color := make_vector4(1, 0.19, 0.19, 1);
-            particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, bar_color, PARTICLE_BURST_HIT_COUNT);
+            particle_burst(proj_center(), BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
             if bar_dx != 0 {
-                proj_dx = bar_dx*PROJ_SPEED;
+                proj_velocity.x = bar_dx*PROJ_SPEED;
             } else {
-                sign :: (x: float) -> float {
+                sign :: inline (x: float) -> float {
                     return xx (-cast(int)(x<0) + cast(int)(x>0));
                 }
-                proj_dx = sign(proj_dx)*PROJ_SPEED*ANGLE_FACTOR;
+                proj_velocity.x = sign(proj_velocity.x)*PROJ_SPEED*ANGLE_FACTOR;
             }
             bonus_score = 0;
         }
 
         case .BORDER_BOTTOM; {
-            particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, make_vector4(1, 1, 1, 1), PARTICLE_BURST_DEATH_COUNT);
+            particle_burst(proj_center(), PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
             state = .RESTART;
             bonus_score = 0;
             lifes = max(lifes - 1, 0);
-            proj_x = LIFES_PADDING_RIGHT + lifes*(LIFE_SIZE + LIFES_PADDING);
-            proj_y = LIFES_PADDING_TOP;
-            proj_dx = 0;
-            proj_dy = 0;
+            // TODO: factor out the calculation of life bar position
+            proj_position.x = LIFES_PADDING_RIGHT + lifes*(LIFE_SIZE + LIFES_PADDING);
+            proj_position.y = LIFES_PADDING_TOP;
+            proj_velocity = .{0, 0};
             restart_cooldown = RESTART_COOLDOWN;
             restart_velocity = 0;
         }
@@ -298,42 +313,33 @@ update :: (dt: float32) {
         bar_dx = 0;
         if left  then bar_dx += -1;
         if right then bar_dx +=  1;
-        bar_collision(dt, proj_rect(proj_x, proj_y));
+        bar_collision(dt, proj_rect(proj_position));
 
         if state == {
             case .READY; {
-                proj_dx = 0;
-                proj_dy = 0;
-                proj_x = bar_x + BAR_LEN/2 - PROJ_SIZE/2;
-                proj_y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
+                proj_velocity = .{0, 0};
+                proj_position = bar_anchor(bar_x);
             }
 
             case .PLAY; {
-                handle_proj_collision(horz_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
-                handle_proj_collision(vert_collision(*proj_x, *proj_y, *proj_dx, *proj_dy, PROJ_SIZE, PROJ_SIZE, dt));
+                handle_proj_collision(horz_collision(*proj_position.x, *proj_position.y, *proj_velocity.x, *proj_velocity.y, PROJ_SIZE, PROJ_SIZE, dt));
+                handle_proj_collision(vert_collision(*proj_position.x, *proj_position.y, *proj_velocity.x, *proj_velocity.y, PROJ_SIZE, PROJ_SIZE, dt));
             }
 
             case .RESTART; if restart_cooldown > 0 {
                 restart_cooldown -= dt;
             } else {
-                anchor_x := bar_x + BAR_LEN/2 - PROJ_SIZE/2;
-                anchor_y := (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
-                proj_dx := anchor_x - proj_x;
-                proj_dy := anchor_y - proj_y;
-                len := sqrt(proj_dx*proj_dx + proj_dy*proj_dy);
+                anchor := bar_anchor(bar_x);
+                proj_velocity = anchor - proj_position;
+                len := length(proj_velocity);
                 if len > 0 {
-                    proj_dx /= len;
-                    proj_dy /= len;
                     restart_velocity += RESTART_ACCELERATION*dt;
-                    proj_dx *= restart_velocity;
-                    proj_dy *= restart_velocity;
+                    proj_velocity /= len;
+                    proj_velocity *= restart_velocity;
                 }
-                proj_x += proj_dx*dt;
-                proj_y += proj_dy*dt;
-                dx := proj_x - anchor_x;
-                dy := proj_y - anchor_y;
-                if dx*dx + dy*dy < RESTART_DISTANCE*RESTART_DISTANCE {
-                    particle_burst(proj_x + PROJ_SIZE/2, proj_y + PROJ_SIZE/2, BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
+                proj_position += proj_velocity*dt;
+                if length(proj_position - anchor) < RESTART_DISTANCE {
+                    particle_burst(proj_center(), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
                     state = .READY;
                 }
             }
@@ -401,7 +407,7 @@ render :: () {
     }
 
     for targets_pool if !it.dead then fill_rect(target_rect(it), it.color);
-    fill_rect(proj_rect(proj_x, proj_y), PROJ_COLOR);
+    fill_rect(proj_rect(proj_position), PROJ_COLOR);
     fill_rect(bar_rect(bar_x), BAR_COLOR);
 
     // TODO: make the score and lifes semi-transparent when the projectile cross them
