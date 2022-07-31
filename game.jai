@@ -120,8 +120,7 @@ init_state :: () {
     state = .RESTART;
     score = 0;
     lifes = 3;
-    proj_position.x = LIFES_PADDING_RIGHT + lifes*(LIFE_SIZE + LIFES_PADDING);
-    proj_position.y = LIFES_PADDING_TOP;
+    proj_position = life_position(lifes);
     restart_cooldown = RESTART_COOLDOWN;
 }
 
@@ -267,6 +266,13 @@ bar_collision :: (dt: float32, obstacle: Rect) {
     bar_x = bar_nx;
 }
 
+life_position :: (index: int) -> Vector2 {
+    position : Vector2 = ---;
+    position.x = LIFES_PADDING_RIGHT + index*(LIFE_SIZE + LIFES_PADDING);
+    position.y = LIFES_PADDING_TOP;
+    return position;
+}
+
 handle_proj_collision :: (c: Collision) {
     if c == {
         case .BAR; {
@@ -287,9 +293,7 @@ handle_proj_collision :: (c: Collision) {
             state = .RESTART;
             bonus_score = 0;
             lifes = max(lifes - 1, 0);
-            // TODO: factor out the calculation of life bar position
-            proj_position.x = LIFES_PADDING_RIGHT + lifes*(LIFE_SIZE + LIFES_PADDING);
-            proj_position.y = LIFES_PADDING_TOP;
+            proj_position = life_position(lifes);
             proj_velocity = .{0, 0};
             restart_cooldown = RESTART_COOLDOWN;
             restart_velocity = 0;
@@ -406,9 +410,8 @@ render :: () {
 
     // TODO: make the score and lifes semi-transparent when the projectile cross them
     for i: 0..lifes-1 {
-        x := LIFES_PADDING_RIGHT + i*(LIFE_SIZE + LIFES_PADDING);
-        y := LIFES_PADDING_TOP;
-        fill_rect(make_rect(x, y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
+        position := life_position(i);
+        fill_rect(make_rect(position.x, position.y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
     }
 
     /* score_text_width := prepare_text(tprint("Score: %", score)); */
