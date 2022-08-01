@@ -80,22 +80,34 @@ font: *Simp.Dynamic_Font;
     }
 }
 
-// TODO: introduce logical size of the device (similar to SDL's one)
-fill_rect :: (using rect: Rect, color: Vector4) {
+// TODO: we should probably rename WINDOW_WIDTH and WINDOW_HEIGHT
+// They are not really refering to window size anymore they are more of a logical size of a screen.
+actual_window_width: int;
+actual_window_height: int;
+actual_window_offset_x: int;
+actual_window_offset_y: int;
+
+fill_rect :: (rect: Rect, color: Vector4) {
     #if DEBUG {
         colored_rect : Colored_Rect = ---;
         colored_rect.rect = rect;
         colored_rect.color = color;
         array_add(*rect_buffer, colored_rect);
     }
+    using nrect := rect;
+    x = x/WINDOW_WIDTH*actual_window_width + actual_window_offset_x;
+    y = y/WINDOW_HEIGHT*actual_window_height + actual_window_offset_y;
+    w = w/WINDOW_WIDTH*actual_window_width;
+    h = h/WINDOW_HEIGHT*actual_window_height;
     Simp.set_shader_for_color(enable_blend = true);
-    Simp.immediate_quad(x, WINDOW_HEIGHT - y, x + w, WINDOW_HEIGHT - y - h, color);
+    Simp.immediate_quad(x, actual_window_height - y, x + w, actual_window_height - y - h, color);
 }
 
 prepare_text :: (text: string) -> (width: s64) {
     return Simp.prepare_text(font, text);
 }
 
+// TODO: text rendering is not properly mapped on the actual window size
 draw_prepared_text :: (x: s64, y: s64, color := Vector4.{1, 1, 1, 1}) {
     Simp.draw_prepared_text(font, x, y, color);
 }
@@ -111,6 +123,10 @@ main :: () {
     print("[INFO] loaded font %\n", TEXT_FONT_FILE_NAME);
 
     window := create_window(window_name="Jaibreak", width=WINDOW_WIDTH, height=WINDOW_HEIGHT);
+    actual_window_width = WINDOW_WIDTH;
+    actual_window_height = WINDOW_HEIGHT;
+    actual_window_offset_x = 0;
+    actual_window_offset_y = 0;
     Simp.set_render_target(window);
 
     last_time := get_time();
@@ -121,6 +137,25 @@ main :: () {
         last_time = now;
 
         update_window_events();
+
+        for get_window_resizes() {
+            Simp.update_window(it.window);
+            if it.window == window {
+                actual_window_width  = it.width;
+                actual_window_height = it.width*WINDOW_HEIGHT/WINDOW_WIDTH;
+                if actual_window_height > it.height {
+                    actual_window_width  = it.height*WINDOW_WIDTH/WINDOW_HEIGHT;
+                    actual_window_height = it.height;
+                    actual_window_offset_x = (it.width - actual_window_width)/2;
+                    actual_window_offset_y = 0;
+                } else {
+                    actual_window_offset_x = 0;
+                    actual_window_offset_y = -(it.height - actual_window_height)/2;
+                }
+
+                // TODO: reinit fonts on window resize in Simp platform
+            }
+        }
 
         for event : events_this_frame {
             if event.type == {

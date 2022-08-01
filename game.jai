@@ -10,8 +10,8 @@ Target :: struct {
 Particle :: struct {
     position: Vector2;
     velocity: Vector2;
-    size_factor: float32 = 1.0;
-    lifetime: float32;
+    size_factor: float = 1.0;
+    lifetime: float;
     color: Vector4;
 }
 
@@ -26,8 +26,8 @@ left := false;
 right := false;
 particles : [256]Particle;
 targets_pool : [..]Target;
-bar_x:   float32;
-bar_dx:  float32;
+bar_x:   float;
+bar_dx:  float;
 proj_position: Vector2;
 proj_velocity: Vector2;
 quit: bool;
@@ -125,17 +125,17 @@ init_state :: () {
 }
 
 Rect :: struct {
-    x: float32;
-    y: float32;
-    w: float32;
-    h: float32;
+    x: float;
+    y: float;
+    w: float;
+    h: float;
 }
 
 make_rect :: (position: Vector2, size: Vector2) -> Rect {
     return make_rect(position.x, position.y, size.x, size.y);
 }
 
-make_rect :: (x: float32, y: float32, w: float32, h: float32) -> Rect {
+make_rect :: (x: float, y: float, w: float, h: float) -> Rect {
     result : Rect = ---;
     result.x = x;
     result.y = y;
@@ -160,7 +160,7 @@ proj_rect :: (using position: Vector2) -> Rect {
     return proj_rect(x, y);
 }
 
-proj_rect :: (x: float32, y: float32) -> Rect {
+proj_rect :: (x: float, y: float) -> Rect {
     result : Rect = ---;
     result.x = x;
     result.y = y;
@@ -175,7 +175,7 @@ bar_anchor :: (x: float) -> Vector2 {
     return make_vector2(anchor_x, anchor_y);
 }
 
-bar_rect :: (x: float32) -> Rect {
+bar_rect :: (x: float) -> Rect {
     result : Rect = ---;
     result.x = x;
     result.y = (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2;
@@ -184,7 +184,7 @@ bar_rect :: (x: float32) -> Rect {
     return result;
 }
 
-sides :: (using rect: Rect) -> float32, float32, float32, float32 {
+sides :: (using rect: Rect) -> float, float, float, float {
     return x, x + w, y, y + h;
 }
 
@@ -212,7 +212,7 @@ Collision :: enum s64 {
     TARGET;
 }
 
-horz_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: float32) -> Collision {
+horz_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: float) -> Collision {
     nx := position.x + velocity.x*dt;
     if nx < 0 {
         velocity.x *= -1;
@@ -236,7 +236,7 @@ horz_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
     return .NO;
 }
 
-vert_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: float32) -> Collision {
+vert_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: float) -> Collision {
     ny := position.y + velocity.y*dt;
     if ny < 0 {
         velocity.y *= -1;
@@ -260,7 +260,7 @@ vert_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
     return .NO;
 }
 
-bar_collision :: (dt: float32, obstacle: Rect) {
+bar_collision :: (dt: float, obstacle: Rect) {
     bar_nx := clamp(bar_x + bar_dx*BAR_SPEED*dt, 0, WINDOW_WIDTH - BAR_LEN);
     if overlaps(obstacle, bar_rect(bar_nx)) return;
     bar_x = bar_nx;
@@ -305,7 +305,7 @@ handle_proj_collision :: (c: Collision) {
     }
 }
 
-update :: (dt: float32) {
+update :: (dt: float) {
     if !pause {
         // TODO: slight ease in/out of the bar movement
         bar_dx = 0;
