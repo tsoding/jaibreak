@@ -4,11 +4,13 @@ const EBADF = 9;
 let app = document.getElementById("app");
 let ctx = app.getContext("2d");
 // TODO: read the font size from param.conf somehow
+// I think the entire font management has to be moved out of the platforms to fascilitate that
 ctx.font = '37px Alegreya-Regular';
 
-let w = null;
-let context = null;
-let output_buffer = "";
+let w = null;              // the WASM module
+let context = null;        // the Jai context (the one that contains the allocator, logger, etc)
+let output_buffer = "";    // buffer for write() "syscalls"
+let prepared_text = null;  // prepared text for rendering by Simp
 
 function find_name_by_regexp(exports, prefix) {
     const re = new RegExp('^'+prefix+'_[0-9a-z]+$');
@@ -34,6 +36,8 @@ function make_environment(...envs) {
 }
 
 const std = {
+    // TODO: write() does not print stack traces adequately when an assertion fails or something
+    // The easiest way to reproduce is to make an allocator that always returns `null`
     "write": (fd, buf, count) => {
         let log = undefined;
         switch (fd) {
@@ -97,8 +101,6 @@ const game = {
     }
 };
 
-let prepared_text = null;
-
 function hexcolor(r, g, b, a) {
     r = Math.floor(r*255).toString(16).padStart(2, 0);
     g = Math.floor(g*255).toString(16).padStart(2, 0);
@@ -118,8 +120,8 @@ WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
 
     set_heap_base(w.instance.exports.__heap_base.value);
     w.instance.exports.main(
-        0, //argc
-        NULL64 //argv
+        0,     // argc
+        NULL64 // argv
     );
 
     let prev = null;

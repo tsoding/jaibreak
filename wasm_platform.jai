@@ -25,7 +25,7 @@ fill_rect :: (rect: Rect, color: Vector4) {
 
 set_context :: (c: *Context) #foreign wasmstub;
 
-__heap_base : *void;
+__heap_base : *void = null;
 heap_size := 0;
 
 set_heap_base :: (heap_base_from_js: *void) #no_context {
@@ -38,6 +38,7 @@ heap_base_alloc :: (mode: Allocator_Mode, size: s64, old_size: s64, old_memory: 
     if mode == {
         case .RESIZE; #through;
         case .ALLOCATE; if (old_size < size) {
+            assert(__heap_base != null);
             new_memory := __heap_base + heap_size;
             heap_size += size;
             memcpy(new_memory, old_memory, old_size);
