@@ -97,7 +97,7 @@ const game = {
     },
     "draw_prepared_text_wasm": (x, y, r, g, b, a) => {
         ctx.fillStyle = hexcolor(r, g, b, a);
-        ctx.fillText(prepared_text, Number(x), app.height - Number(y));
+        ctx.fillText(prepared_text, Number(x), Number(y));
     }
 };
 

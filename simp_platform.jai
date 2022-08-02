@@ -105,20 +105,14 @@ prepare_text :: (text: string) -> (width: s64) {
     return Simp.prepare_text(font, text);
 }
 
-// TODO: text rendering is not properly mapped on the actual window size
 draw_prepared_text :: (x: s64, y: s64, color := Vector4.{1, 1, 1, 1}) {
-    Simp.draw_prepared_text(font, x, y, color);
+    x = x*actual_window_width/WINDOW_WIDTH + actual_window_offset_x;
+    y = y*actual_window_height/WINDOW_HEIGHT + actual_window_offset_y;
+    Simp.draw_prepared_text(font, x, actual_window_height - y, color);
 }
 
 main :: () {
     init_state();
-
-    font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
-    if !font {
-        print("[ERROR] could not load font %\n", TEXT_FONT_FILE_NAME);
-        exit(1);
-    }
-    print("[INFO] loaded font %\n", TEXT_FONT_FILE_NAME);
 
     window := create_window(window_name="Jaibreak", width=WINDOW_WIDTH, height=WINDOW_HEIGHT);
     actual_window_width = WINDOW_WIDTH;
@@ -126,6 +120,12 @@ main :: () {
     actual_window_offset_x = 0;
     actual_window_offset_y = 0;
     Simp.set_render_target(window);
+
+    font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*actual_window_height));
+    if !font {
+        print("[ERROR] could not load font %\n", TEXT_FONT_FILE_NAME);
+        exit(1);
+    }
 
     last_time := get_time();
     while !quit {
@@ -151,7 +151,12 @@ main :: () {
                     actual_window_offset_y = -(it.height - actual_window_height)/2;
                 }
 
-                // TODO: reinit fonts on window resize in Simp platform
+                Simp.release_font(font);
+                font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*actual_window_height));
+                if !font {
+                    print("[ERROR] could not reload font %\n", TEXT_FONT_FILE_NAME);
+                    exit(1);
+                }
             }
         }
 
@@ -168,7 +173,11 @@ main :: () {
                             case .F5; if event.key_pressed {
                                 sync_param_vars();
                                 Simp.release_font(font);
-                                font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
+                                font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*actual_window_height));
+                                if !font {
+                                    print("[ERROR] could not reload font %\n", TEXT_FONT_FILE_NAME);
+                                    exit(1);
+                                }
                             }
 
                             case .F3; if event.key_pressed {

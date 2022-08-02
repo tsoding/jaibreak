@@ -414,16 +414,16 @@ render :: () {
         fill_rect(make_rect(position.x, position.y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
     }
 
+    // TODO: it would be cool if we could use tprint here, but tprint uses assembly right now
     /* score_text_width := prepare_text(tprint("Score: %", score)); */
     score_text_width := prepare_text(render_score(score));
-    // TODO: coordinate system for rendering the text is inconsistent compared to fill_rect
-    draw_prepared_text(SCORE_PADDING_LEFT, WINDOW_HEIGHT - SCORE_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
+    draw_prepared_text(SCORE_PADDING_LEFT, SCORE_PADDING_TOP + xx(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
     if pause {
         pause_text_width := prepare_text("Pause");
         draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
     }
-#if DEBUG {
-    debug_text_width := prepare_text("Debug");
-    draw_prepared_text(WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, WINDOW_HEIGHT - DEBUG_PADDING_TOP - xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), DEBUG_TEXT_COLOR);
-}
+    #if DEBUG {
+        debug_text_width := prepare_text("Debug");
+        draw_prepared_text(WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, DEBUG_PADDING_TOP + xx(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), DEBUG_TEXT_COLOR);
+    }
 }
