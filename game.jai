@@ -396,6 +396,19 @@ render_score :: (x: int) -> string {
     return result;
 }
 
+draw_horz_line :: (x1: float, x2: float, y: float, thiccness: float, color: Vector4) {
+    fill_rect(make_rect(x1, y - thiccness*.5, x2 - x1, thiccness), color);
+}
+
+draw_vert_line :: (y1: float, y2: float, x: float, thiccness: float, color: Vector4) {
+    fill_rect(make_rect(x - thiccness*.5, y1, thiccness, y2 - y1), color);
+}
+
+render_debug_guides :: () {
+    draw_horz_line(0, xx WINDOW_WIDTH,  WINDOW_HEIGHT/2.0, DEBUG_LINE_THICCNESS, DEBUG_LINE_COLOR);
+    draw_vert_line(0, xx WINDOW_HEIGHT, WINDOW_WIDTH/2.0,  DEBUG_LINE_THICCNESS, DEBUG_LINE_COLOR);
+}
+
 render :: () {
     fill_rect(make_rect(0, 0, xx WINDOW_WIDTH, xx WINDOW_HEIGHT), BACKGROUND_COLOR);
 
@@ -420,14 +433,16 @@ render :: () {
 
     // TODO: it would be cool if we could use tprint here, but tprint uses assembly right now
     /* score_text_width := prepare_text(tprint("Score: %", score)); */
+    text_height := cast(int)(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT);
     score_text_width := prepare_text(render_score(score));
-    draw_prepared_text(SCORE_PADDING_LEFT, SCORE_PADDING_TOP + xx(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), TEXT_COLOR);
+    draw_prepared_text(SCORE_PADDING_LEFT, SCORE_PADDING_TOP + text_height, TEXT_COLOR);
+    /* render_debug_guides(); */
     if pause {
         pause_text_width := prepare_text("Pause");
-        draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2, TEXT_COLOR);
+        draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2 + text_height/4, TEXT_COLOR);
     }
     #if DEBUG {
         debug_text_width := prepare_text("Debug");
-        draw_prepared_text(WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, DEBUG_PADDING_TOP + xx(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT), DEBUG_TEXT_COLOR);
+        draw_prepared_text(WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, DEBUG_PADDING_TOP + text_height, DEBUG_TEXT_COLOR);
     }
 }

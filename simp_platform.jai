@@ -100,7 +100,7 @@ fill_rect :: (rect: Rect, color: Vector4) {
 }
 
 prepare_text :: (text: string) -> (width: s64) {
-    return Simp.prepare_text(font, text);
+    return Simp.prepare_text(font, text) * WINDOW_WIDTH / actual_window_width;
 }
 
 draw_prepared_text :: (x: s64, y: s64, color := Vector4.{1, 1, 1, 1}) {
