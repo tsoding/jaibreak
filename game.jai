@@ -25,7 +25,7 @@ State :: enum {
 left := false;
 right := false;
 particles : [256]Particle;
-targets_pool : [..]Target;
+targets : [..]Target;
 bar_x:   float;
 bar_dx:  float;
 proj_position: Vector2;
@@ -109,7 +109,7 @@ init_state :: () {
             g2    := lerp(green, blue, (t - level)/(1 - level));
             target.color = linear_to_srgb(c*g1 + (1 - c)*g2);
 
-            array_add(*targets_pool, target);
+            array_add(*targets, target);
         }
     }
 
@@ -195,6 +195,10 @@ overlaps :: (a: Rect, b: Rect) -> bool {
 }
 
 target_hit :: (target: *Target) {
+    // TODO: burst the particles not from a single point but rather from the rectangular area of the target
+    // The ability to do so might be useful for all sorts of effects. 
+    // For instance, when the ball hits the bottom. So it may help to convey the ball disintegrating. 
+    // Or when we will need to convey the bar disintegrating.
     particle_burst(proj_center(), target.color, PARTICLE_BURST_HIT_COUNT + bonus_score*2);
     target.dead = true;
     // TODO: indicate how much score points you've got by showing a fading sign with the number at the point of the impact
@@ -226,7 +230,7 @@ horz_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
         velocity.x *= -1;
         return .BAR;
     }
-    for * targets_pool {
+    for * targets {
         if !it.dead && overlaps(make_rect(nx, position.y, size.x, size.y), target_rect(it)) {
             velocity.x *= -1;
             return xx (xx Collision.TARGET + it_index);
@@ -250,7 +254,7 @@ vert_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
         velocity.y *= -1;
         return .BAR;
     }
-    for *targets_pool {
+    for *targets {
         if !it.dead && overlaps(make_rect(position.x, ny, size.x, size.y), target_rect(it)) {
             velocity.y *= -1;
             return xx (xx Collision.TARGET + it_index);
@@ -300,7 +304,7 @@ handle_proj_collision :: (c: Collision) {
         }
 
         case; if c >= .TARGET {
-            target_hit(*targets_pool[c - .TARGET]);
+            target_hit(*targets[c - .TARGET]);
         }
     }
 }
@@ -404,7 +408,7 @@ render :: () {
         }
     }
 
-    for targets_pool if !it.dead then fill_rect(target_rect(it), it.color);
+    for targets if !it.dead then fill_rect(target_rect(it), it.color);
     fill_rect(proj_rect(proj_position), PROJ_COLOR);
     fill_rect(bar_rect(bar_x), BAR_COLOR);
 
