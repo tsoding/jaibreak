@@ -26,6 +26,8 @@ gen_params_static :: () {
             // TODO: maybe the printer function (or whatever it is called in Jai, I don't actually know)
             // of Vector4 should put that dot in front of the literal?
             case Vector4; file_write(*file, tprint("% : Vector4 : .%;\n", name, <<(cast(*Vector4) value.bytes.data)));
+            // TODO: implement escaping of the string literals when serializing them
+            case string; file_write(*file, tprint("% : string : \"%\";\n", name, <<(cast(*string) value.bytes.data)));
             case; assert(false, "unreachable");
         }
     }
@@ -44,6 +46,8 @@ gen_params_dynamic :: () {
             case int;     file_write(*file, tprint("% : int = %;\n", name, <<(cast(*int) value.bytes.data)));
             case float;   file_write(*file, tprint("% : float = %;\n", name, <<(cast(*float) value.bytes.data)));
             case Vector4; file_write(*file, tprint("% : Vector4 = .%;\n", name, <<(cast(*Vector4) value.bytes.data)));
+            // TODO: implement escaping of the string literals when serializing them
+            case string;  file_write(*file, tprint("% : string = \"%\";\n", name, <<(cast(*string) value.bytes.data)));
             case; assert(false, "unreachable");
         }
     }
@@ -55,6 +59,7 @@ gen_params_dynamic :: () {
             case int;     file_write(*file, tprint("    % = get_param(int, \"%\");\n", name, name));
             case float;   file_write(*file, tprint("    % = get_param(float, \"%\");\n", name, name));
             case Vector4; file_write(*file, tprint("    % = get_param(Vector4, \"%\");\n", name, name));
+            case string;  file_write(*file, tprint("    % = get_param(string, \"%\");\n", name, name));
             case; assert(false, "unreachable");
         }
     }

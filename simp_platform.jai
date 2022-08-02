@@ -6,8 +6,6 @@
 #import "File";
 Simp :: #import "Simp";
 
-TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
-
 font: *Simp.Dynamic_Font;
 
 #if DEBUG {
