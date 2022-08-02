@@ -78,8 +78,6 @@ font: *Simp.Dynamic_Font;
     }
 }
 
-// TODO: we should probably rename WINDOW_WIDTH and WINDOW_HEIGHT
-// They are not really refering to window size anymore they are more of a logical size of a screen.
 actual_window_width: int;
 actual_window_height: int;
 actual_window_offset_x: int;
