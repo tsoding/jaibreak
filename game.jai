@@ -143,8 +143,13 @@ lifes: int;
 // TODO: tutorial
 // TODO: speeding up the ball over time
 
-particle_burst :: (position: Vector2, color: Vector4, count: int) {
-    for 0..count-1 particle_emit(position, color);
+particle_burst :: (area: Rect, color: Vector4, count: int) {
+    for 1..count {
+        position : Vector2 = ---;
+        position.x = area.x + random_get_zero_to_one()*area.w;
+        position.y = area.y + random_get_zero_to_one()*area.h;
+        particle_emit(position, color);
+    }
 }
 
 // TODO: gravity for particles
@@ -318,11 +323,7 @@ overlaps :: (a: Rect, b: Rect) -> bool {
 }
 
 target_hit :: (target: *Target) {
-    // TODO: burst the particles not from a single point but rather from the rectangular area of the target
-    // The ability to do so might be useful for all sorts of effects. 
-    // For instance, when the ball hits the bottom. So it may help to convey the ball disintegrating. 
-    // Or when we will need to convey the bar disintegrating.
-    particle_burst(proj_center(), target.color, PARTICLE_BURST_HIT_COUNT + bonus_score*2);
+    particle_burst(target_rect(target), target.color, PARTICLE_BURST_HIT_COUNT + bonus_score*2);
     target.dead = true;
     // TODO: indicate how much score points you've got by showing a fading sign with the number at the point of the impact
     score += 1 + bonus_score;
@@ -403,7 +404,7 @@ life_position :: (index: int) -> Vector2 {
 handle_proj_collision :: (c: Collision) {
     if c == {
         case .BAR; {
-            particle_burst(proj_center(), BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
+            particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
             if bar_dx != 0 {
                 proj_velocity.x = bar_dx*PROJ_SPEED;
             } else {
@@ -416,7 +417,7 @@ handle_proj_collision :: (c: Collision) {
         }
 
         case .BORDER_BOTTOM; {
-            particle_burst(proj_center(), PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
+            particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
             state = .RESTART;
             bonus_score = 0;
             lifes = max(lifes - 1, 0);
@@ -466,7 +467,7 @@ update :: (dt: float) {
                 }
                 proj_position += proj_velocity*dt;
                 if length(proj_position - anchor) < RESTART_DISTANCE {
-                    particle_burst(proj_center(), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
+                    particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
                     state = .READY;
                     if tutorial then popup_deck_push(*popup_deck, "Press SPACE to start"); 
                 }
