@@ -101,11 +101,15 @@ const game = {
     }
 };
 
+function clamp(low, high, value) {
+    return Math.min(Math.max(low, value), high);
+}
+
 function hexcolor(r, g, b, a) {
-    r = Math.floor(r*255).toString(16).padStart(2, 0);
-    g = Math.floor(g*255).toString(16).padStart(2, 0);
-    b = Math.floor(b*255).toString(16).padStart(2, 0);
-    a = Math.floor(a*255).toString(16).padStart(2, 0);
+    r = clamp(0, 255, Math.floor(r*255)).toString(16).padStart(2, 0);
+    g = clamp(0, 255, Math.floor(g*255)).toString(16).padStart(2, 0);
+    b = clamp(0, 255, Math.floor(b*255)).toString(16).padStart(2, 0);
+    a = clamp(0, 255, Math.floor(a*255)).toString(16).padStart(2, 0);
     return '#'+r+g+b+a;
 }
 

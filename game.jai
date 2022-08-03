@@ -1,6 +1,103 @@
 #import "Basic";
 #import "Math";
 
+Popup :: struct {
+    state: enum {
+        HIDDEN;
+        FADEIN;
+        DISPLAY;
+        FADEOUT;
+        DISPOSED;
+    };
+    text: string;
+    a: float; // 0..1
+}
+
+popup_render :: (using popup: *Popup) {
+    alpha : float = ---;
+    if state == {
+        case .HIDDEN;   alpha = 0;
+        case .FADEIN;   alpha = a;
+        case .DISPLAY;  alpha = 1;
+        case .FADEOUT;  alpha = 1 - a;
+        case .DISPOSED; alpha = 0;
+    }
+
+    text_width := prepare_text(text);
+    text_height := cast(int)(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT);
+    color := TEXT_COLOR;
+    color.w = alpha;
+    draw_prepared_text(WINDOW_WIDTH/2 - text_width/2, WINDOW_HEIGHT/2 + text_height/4, color);
+}
+
+popup_update :: (using popup: *Popup, dt: float) {
+    if state == {
+        case .HIDDEN;  if a < 1.0 then a += dt/POPUP_HIDDEN_TIME;  else { a = 0; state = .FADEIN;  }
+        case .FADEIN;  if a < 1.0 then a += dt/POPUP_FADEIN_TIME;  else { a = 0; state = .DISPLAY; }
+        case .DISPLAY;
+        case .FADEOUT; if a < 1.0 then a += dt/POPUP_FADEOUT_TIME; else { a = 0; state = .DISPOSED; }
+        case .DISPOSED;
+    }
+}
+
+popup_dispose :: (using popup: *Popup) {
+    if state == {
+        case .HIDDEN; state = .DISPOSED;
+        case .FADEIN; {
+            a = 1.0 - a;
+            state = .FADEOUT;
+        }
+        case .DISPLAY; {
+            a = 0;
+            state = .FADEOUT;
+        }
+        case .FADEOUT;
+        case .DISPOSED;
+    }
+}
+
+Popup_Deck :: struct {
+    active: bool;
+    popup: Popup;
+    next_popup_text: string;
+}
+
+popup_deck_push :: (using deck: *Popup_Deck, text: string) {
+    if active {
+        popup_dispose(*popup);
+        next_popup_text = text;
+    } else {
+        popup.text = text;
+        popup.state = .HIDDEN;
+        popup.a = 0;
+        active = true;
+    }
+}
+
+popup_deck_dispose :: (using deck: *Popup_Deck) {
+    if active then popup_dispose(*popup);
+}
+
+popup_deck_render :: (using deck: *Popup_Deck) {
+    if active then popup_render(*popup);
+}
+
+popup_deck_update :: (using deck: *Popup_Deck, dt: float) {
+    if active {
+        popup_update(*popup, dt);
+        if popup.state == .DISPOSED {
+            if next_popup_text.count > 0 {
+                popup.text = next_popup_text;
+                popup.state = .HIDDEN;
+                popup.a = 0;
+                next_popup_text.count = 0;
+            } else {
+                active = false;
+            }
+        }
+    }
+}
+
 Target :: struct {
     position: Vector2;
     color: Vector4;
@@ -16,6 +113,7 @@ Particle :: struct {
 }
 
 State :: enum {
+    TUTORIAL;
     READY;
     PLAY;
     RESTART;
@@ -32,7 +130,9 @@ proj_position: Vector2;
 proj_velocity: Vector2;
 quit: bool;
 pause: bool;
+tutorial: bool;
 state: State;
+popup_deck : Popup_Deck;
 score: int;
 restart_cooldown: float;
 restart_velocity: float;
@@ -65,10 +165,26 @@ particle_emit :: (position: Vector2, color: Vector4) {
 
 key_press :: (key: u32) {
     if key == {
-        case #char "A"; left = true;
-        case #char "D"; right = true;
+        case #char "A"; {
+            left = true;
+            if state == .TUTORIAL {
+                state = .RESTART;
+                popup_deck_dispose(*popup_deck);
+            }
+        }
+        case #char "D"; {
+            right = true;
+            if state == .TUTORIAL {
+                state = .RESTART;
+                popup_deck_dispose(*popup_deck);
+            }
+        }
         case 27; pause = !pause;
         case #char " "; if !pause && state == .READY {
+            if tutorial {
+                popup_deck_dispose(*popup_deck);
+                tutorial = false;
+            }
             state = .PLAY;
             // TODO: direct angle factored projectile based on the last direction
             proj_velocity.x = PROJ_SPEED*ANGLE_FACTOR;
@@ -103,7 +219,7 @@ init_state :: () {
             green := srgb_to_linear(make_vector4(.18, 1, .18, 1));
             blue  := srgb_to_linear(make_vector4(.18, .18, 1, 1));
             level := .5;
-            t     := cast(float) row/TARGET_COLS;
+            t     := cast(float) row/TARGET_ROWS;
             c     := cast(float) (t < level);
             g1    := lerp(red, green, t/level);
             g2    := lerp(green, blue, (t - level)/(1 - level));
@@ -117,7 +233,14 @@ init_state :: () {
     bar_dx = 0;
     quit = false;
     pause = false;
-    state = .RESTART;
+    // TODO: save the fact that the player already passed the tutorial
+    tutorial = true;
+    if tutorial {
+        state = .TUTORIAL;
+        popup_deck_push(*popup_deck, "Press A or D to move around");
+    } else {
+        state = .RESTART;
+    }
     score = 0;
     lifes = 3;
     proj_position = life_position(lifes);
@@ -317,6 +440,8 @@ update :: (dt: float) {
         if right then bar_dx +=  1;
         bar_collision(dt, proj_rect(proj_position));
 
+        popup_deck_update(*popup_deck, dt);
+
         if state == {
             case .READY; {
                 proj_velocity = .{0, 0};
@@ -343,6 +468,7 @@ update :: (dt: float) {
                 if length(proj_position - anchor) < RESTART_DISTANCE {
                     particle_burst(proj_center(), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
                     state = .READY;
+                    if tutorial then popup_deck_push(*popup_deck, "Press SPACE to start"); 
                 }
             }
         }
@@ -440,6 +566,8 @@ render :: () {
     if pause {
         pause_text_width := prepare_text("Pause");
         draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2 + text_height/4, TEXT_COLOR);
+    } else {
+        popup_deck_render(*popup_deck);
     }
     #if DEBUG {
         debug_text_width := prepare_text("Debug");
