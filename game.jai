@@ -112,12 +112,33 @@ Particle :: struct {
     color: Vector4;
 }
 
+// digraph State {
+//     START -> RESTART;
+//     RESTART -> READY;
+//     READY -> PLAY;
+//     PLAY -> RESTART;
+//
+//     // TODO: Game Over state is not implemented
+//     PLAY -> GAMEOVER;
+//     GAMEOVER -> RESTART;
+//
+//     // TODO: Victory state is not implemented
+//     PLAY -> VICTORY;
+//     VICTORY -> RESTART;
+// }
 State :: enum {
-    TUTORIAL;
-    READY;
-    PLAY;
+    // Waiting until the player proves that they can move (with A/D keys)
+    START;
+    // The ball from the life bar rapidly moving towards the paddle to attach to it
     RESTART;
+    // The ball is attached to the paddle and waiting until the player presses SPACE
+    READY;
+    // Just the usual game play until the ball hits the bottom
+    PLAY;
+    // Ran out of lifes before destroying all the targets
     GAMEOVER;
+    // Destroyed all the targets
+    VICTORY;
 }
 
 left := false;
@@ -138,8 +159,6 @@ restart_cooldown: float;
 restart_velocity: float;
 bonus_score: int;
 lifes: int;
-// TODO: victory
-// TODO: game over
 // TODO: speeding up the ball over time
 // TODO: sound
 
@@ -172,14 +191,14 @@ key_press :: (key: u32) {
     if key == {
         case #char "A"; {
             left = true;
-            if state == .TUTORIAL {
+            if state == .START {
                 state = .RESTART;
                 popup_deck_dispose(*popup_deck);
             }
         }
         case #char "D"; {
             right = true;
-            if state == .TUTORIAL {
+            if state == .START {
                 state = .RESTART;
                 popup_deck_dispose(*popup_deck);
             }
@@ -241,7 +260,7 @@ init_state :: () {
     // TODO: save the fact that the player already passed the tutorial
     tutorial = true;
     if tutorial {
-        state = .TUTORIAL;
+        state = .START;
         popup_deck_push(*popup_deck, "Press A or D to move around");
     } else {
         state = .RESTART;
@@ -469,7 +488,7 @@ update :: (dt: float) {
                 if length(proj_position - anchor) < RESTART_DISTANCE {
                     particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
                     state = .READY;
-                    if tutorial then popup_deck_push(*popup_deck, "Press SPACE to start"); 
+                    if tutorial then popup_deck_push(*popup_deck, "Press SPACE to start");
                 }
             }
         }
