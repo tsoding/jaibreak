@@ -140,8 +140,8 @@ bonus_score: int;
 lifes: int;
 // TODO: victory
 // TODO: game over
-// TODO: tutorial
 // TODO: speeding up the ball over time
+// TODO: sound
 
 particle_burst :: (area: Rect, color: Vector4, count: int) {
     for 1..count {
