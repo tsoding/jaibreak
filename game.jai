@@ -112,31 +112,19 @@ Particle :: struct {
     color: Vector4;
 }
 
-// digraph State {
-//     START -> RESTART;
-//     RESTART -> READY;
-//     READY -> PLAY;
-//     PLAY -> RESTART;
-//
-//     // TODO: Game Over state is not implemented
-//     PLAY -> GAMEOVER;
-//     GAMEOVER -> RESTART;
-//
-//     // TODO: Victory state is not implemented
-//     PLAY -> VICTORY;
-//     VICTORY -> RESTART;
-// }
 State :: enum {
     // Waiting until the player proves that they can move (with A/D keys)
     START;
     // The ball from the life bar rapidly moving towards the paddle to attach to it
-    RESTART;
+    ATTACH_BALL_FROM_LIFEBAR;
     // The ball is attached to the paddle and waiting until the player presses SPACE
     READY;
     // Just the usual game play until the ball hits the bottom
     PLAY;
     // Ran out of lifes before destroying all the targets
     GAMEOVER;
+    // Start the whole game from scratch
+    RESTART;
     // Destroyed all the targets
     VICTORY;
 }
@@ -155,8 +143,9 @@ tutorial: bool;
 state: State;
 popup_deck : Popup_Deck;
 score: int;
-restart_cooldown: float;
-restart_velocity: float;
+attach_cooldown: float;
+attach_velocity: float;
+screen_fadeout: float;
 bonus_score: int;
 lifes: int;
 // TODO: speeding up the ball over time
@@ -192,29 +181,46 @@ key_press :: (key: u32) {
         case #char "A"; {
             left = true;
             if state == .START {
-                state = .RESTART;
+                state = .ATTACH_BALL_FROM_LIFEBAR;
                 popup_deck_dispose(*popup_deck);
             }
         }
         case #char "D"; {
             right = true;
             if state == .START {
-                state = .RESTART;
+                state = .ATTACH_BALL_FROM_LIFEBAR;
                 popup_deck_dispose(*popup_deck);
             }
         }
         case 27; pause = !pause;
-        case #char " "; if !pause && state == .READY {
-            if tutorial {
-                popup_deck_dispose(*popup_deck);
-                tutorial = false;
+        case #char " "; if !pause {
+            if state == {
+                case .READY; {
+                    if tutorial {
+                        popup_deck_dispose(*popup_deck);
+                        tutorial = false;
+                    }
+                    state = .PLAY;
+                    // TODO: direct angle factored projectile based on the last direction
+                    proj_velocity.x = PROJ_SPEED*ANGLE_FACTOR;
+                    proj_velocity.y = -PROJ_SPEED;
+                    if left  then proj_velocity.x = -PROJ_SPEED;
+                    if right then proj_velocity.x = PROJ_SPEED;
+                }
+
+                case .GAMEOVER; {
+                    if screen_fadeout >= 1 {
+                        popup_deck_dispose(*popup_deck);
+                        state = .RESTART;
+
+                        bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
+                        score = 0;
+                        lifes = 3;
+                        proj_position = life_position(lifes);
+                        for *targets it.dead = false;
+                    }
+                }
             }
-            state = .PLAY;
-            // TODO: direct angle factored projectile based on the last direction
-            proj_velocity.x = PROJ_SPEED*ANGLE_FACTOR;
-            proj_velocity.y = -PROJ_SPEED;
-            if left  then proj_velocity.x = -PROJ_SPEED;
-            if right then proj_velocity.x = PROJ_SPEED;
         }
     }
 }
@@ -263,12 +269,12 @@ init_state :: () {
         state = .START;
         popup_deck_push(*popup_deck, "Press A or D to move around");
     } else {
-        state = .RESTART;
+        state = .ATTACH_BALL_FROM_LIFEBAR;
     }
     score = 0;
     lifes = 3;
     proj_position = life_position(lifes);
-    restart_cooldown = RESTART_COOLDOWN;
+    attach_cooldown = ATTACH_COOLDOWN;
 }
 
 Rect :: struct {
@@ -369,7 +375,7 @@ horz_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
         velocity.x *= -1;
         return .BORDER_RIGHT;
     }
-    if overlaps(make_rect(nx, position.y, size.x, size.y), bar_rect(bar_x)) {
+    if state != .GAMEOVER && overlaps(make_rect(nx, position.y, size.x, size.y), bar_rect(bar_x)) {
         velocity.x *= -1;
         return .BAR;
     }
@@ -393,7 +399,7 @@ vert_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
         velocity.y *= -1;
         return .BORDER_BOTTOM;
     }
-    if overlaps(make_rect(position.x, ny, size.x, size.y), bar_rect(bar_x)) {
+    if state != .GAMEOVER && overlaps(make_rect(position.x, ny, size.x, size.y), bar_rect(bar_x)) {
         velocity.y *= -1;
         return .BAR;
     }
@@ -437,13 +443,20 @@ handle_proj_collision :: (c: Collision) {
 
         case .BORDER_BOTTOM; {
             particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
-            state = .RESTART;
-            bonus_score = 0;
-            lifes = max(lifes - 1, 0);
-            proj_position = life_position(lifes);
-            proj_velocity = .{0, 0};
-            restart_cooldown = RESTART_COOLDOWN;
-            restart_velocity = 0;
+            if lifes > 0 {
+                state = .ATTACH_BALL_FROM_LIFEBAR;
+                bonus_score = 0;
+                lifes = max(lifes - 1, 0);
+                proj_position = life_position(lifes);
+                proj_velocity = .{0, 0};
+                attach_cooldown = ATTACH_COOLDOWN;
+                attach_velocity = 0;
+            } else {
+                particle_burst(bar_rect(bar_x), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
+                state = .GAMEOVER;
+                screen_fadeout = 0;
+                popup_deck_push(*popup_deck, "Game Over");
+            }
         }
 
         case; if c >= .TARGET {
@@ -463,6 +476,17 @@ update :: (dt: float) {
         popup_deck_update(*popup_deck, dt);
 
         if state == {
+            case .RESTART; {
+                if screen_fadeout > 0 {
+                    screen_fadeout -= dt/POPUP_FADEOUT_TIME;
+                } else {
+                    screen_fadeout = 0;
+                    state = .ATTACH_BALL_FROM_LIFEBAR;
+                    attach_cooldown = ATTACH_COOLDOWN;
+                    attach_velocity = 0;
+                }
+            }
+
             case .READY; {
                 proj_velocity = .{0, 0};
                 proj_position = bar_anchor(bar_x);
@@ -473,22 +497,31 @@ update :: (dt: float) {
                 handle_proj_collision(vert_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
             }
 
-            case .RESTART; if restart_cooldown > 0 {
-                restart_cooldown -= dt;
-            } else {
-                anchor := bar_anchor(bar_x);
-                proj_velocity = anchor - proj_position;
-                len := length(proj_velocity);
-                if len > 0 {
-                    restart_velocity += RESTART_ACCELERATION*dt;
-                    proj_velocity /= len;
-                    proj_velocity *= restart_velocity;
+            case .ATTACH_BALL_FROM_LIFEBAR; {
+                if attach_cooldown > 0 {
+                    attach_cooldown -= dt;
+                    screen_fadeout -= dt/GAMEOVER_FADEOUT_TIME;
+                } else {
+                    anchor := bar_anchor(bar_x);
+                    proj_velocity = anchor - proj_position;
+                    len := length(proj_velocity);
+                    if len > 0 {
+                        attach_velocity += ATTACH_ACCELERATION*dt;
+                        proj_velocity /= len;
+                        proj_velocity *= attach_velocity;
+                    }
+                    proj_position += proj_velocity*dt;
+                    if length(proj_position - anchor) < ATTACH_DISTANCE {
+                        particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
+                        state = .READY;
+                        if tutorial then popup_deck_push(*popup_deck, "Press SPACE to start");
+                    }
                 }
-                proj_position += proj_velocity*dt;
-                if length(proj_position - anchor) < RESTART_DISTANCE {
-                    particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
-                    state = .READY;
-                    if tutorial then popup_deck_push(*popup_deck, "Press SPACE to start");
+            }
+
+            case .GAMEOVER; {
+                if popup_deck.popup.state == .DISPLAY && screen_fadeout < 1 {
+                    screen_fadeout += dt/GAMEOVER_FADEOUT_TIME;
                 }
             }
         }
@@ -568,8 +601,10 @@ render :: () {
     }
 
     for targets if !it.dead then fill_rect(target_rect(it), it.color);
-    fill_rect(proj_rect(proj_position), PROJ_COLOR);
-    fill_rect(bar_rect(bar_x), BAR_COLOR);
+    if state != .GAMEOVER {
+        fill_rect(proj_rect(proj_position), PROJ_COLOR);
+        fill_rect(bar_rect(bar_x), BAR_COLOR);
+    }
 
     // TODO: make the score and lifes semi-transparent when the projectile cross them
     for i: 0..lifes-1 {
@@ -582,6 +617,11 @@ render :: () {
     text_height := cast(int)(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT);
     score_text_width := prepare_text(render_score(score));
     draw_prepared_text(SCORE_PADDING_LEFT, SCORE_PADDING_TOP + text_height, TEXT_COLOR);
+    {
+        color := BACKGROUND_COLOR;
+        color.w = screen_fadeout;
+        fill_rect(make_rect(0, 0, xx WINDOW_WIDTH, xx WINDOW_HEIGHT), color);
+    }
     /* render_debug_guides(); */
     if pause {
         pause_text_width := prepare_text("Pause");
