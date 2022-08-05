@@ -266,7 +266,7 @@ init_state :: () {
         state = .RESTART;
     }
     score = 0;
-    lifes = 3;
+    lifes = 0;
     proj_position = life_position(lifes);
     restart_cooldown = RESTART_COOLDOWN;
 }
@@ -369,7 +369,7 @@ horz_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
         velocity.x *= -1;
         return .BORDER_RIGHT;
     }
-    if overlaps(make_rect(nx, position.y, size.x, size.y), bar_rect(bar_x)) {
+    if state != .GAMEOVER && overlaps(make_rect(nx, position.y, size.x, size.y), bar_rect(bar_x)) {
         velocity.x *= -1;
         return .BAR;
     }
@@ -393,7 +393,7 @@ vert_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
         velocity.y *= -1;
         return .BORDER_BOTTOM;
     }
-    if overlaps(make_rect(position.x, ny, size.x, size.y), bar_rect(bar_x)) {
+    if state != .GAMEOVER && overlaps(make_rect(position.x, ny, size.x, size.y), bar_rect(bar_x)) {
         velocity.y *= -1;
         return .BAR;
     }
@@ -437,13 +437,19 @@ handle_proj_collision :: (c: Collision) {
 
         case .BORDER_BOTTOM; {
             particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
-            state = .RESTART;
-            bonus_score = 0;
-            lifes = max(lifes - 1, 0);
-            proj_position = life_position(lifes);
-            proj_velocity = .{0, 0};
-            restart_cooldown = RESTART_COOLDOWN;
-            restart_velocity = 0;
+            if lifes > 0 {
+                state = .RESTART;
+                bonus_score = 0;
+                lifes = max(lifes - 1, 0);
+                proj_position = life_position(lifes);
+                proj_velocity = .{0, 0};
+                restart_cooldown = RESTART_COOLDOWN;
+                restart_velocity = 0;
+            } else {
+                particle_burst(bar_rect(bar_x), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
+                state = .GAMEOVER;
+                popup_deck_push(*popup_deck, "LOL YOU DIED");
+            }
         }
 
         case; if c >= .TARGET {
@@ -568,8 +574,10 @@ render :: () {
     }
 
     for targets if !it.dead then fill_rect(target_rect(it), it.color);
-    fill_rect(proj_rect(proj_position), PROJ_COLOR);
-    fill_rect(bar_rect(bar_x), BAR_COLOR);
+    if state != .GAMEOVER {
+        fill_rect(proj_rect(proj_position), PROJ_COLOR);
+        fill_rect(bar_rect(bar_x), BAR_COLOR);
+    }
 
     // TODO: make the score and lifes semi-transparent when the projectile cross them
     for i: 0..lifes-1 {
