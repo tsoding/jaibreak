@@ -86,6 +86,7 @@ State :: enum {
     VICTORY;
 }
 
+// The Game itself
 left := false;
 right := false;
 particles : [256]Particle;
@@ -94,17 +95,22 @@ bar_x:   float;
 bar_dx:  float;
 proj_position: Vector2;
 proj_velocity: Vector2;
-pause: bool;
-tutorial: bool;
-state: State;
-primary_popup : Popup;
-secondary_popup : Popup;
 score: int;
+bonus_score: int;
+lifes: int;
+
+// Intermediate values for transitions and stuff
+state: State;
+tutorial: bool;
 attach_cooldown: float;
 attach_velocity: float;
 screen_fadeout: float;
-bonus_score: int;
-lifes: int;
+primary_popup : Popup;
+secondary_popup : Popup;
+
+// Pausing is above any state all the time
+pause: bool;
+
 // TODO: speeding up the ball over time
 // TODO: sound
 
