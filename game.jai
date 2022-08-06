@@ -16,11 +16,11 @@ Popup :: struct {
 popup_render :: (using popup: *Popup) {
     alpha : float = ---;
     if state == {
-        case .HIDDEN;   alpha = 0;
+        case .HIDDEN;   return;
         case .FADEIN;   alpha = a;
         case .DISPLAY;  alpha = 1;
         case .FADEOUT;  alpha = 1 - a;
-        case .DISPOSED; alpha = 0;
+        case .DISPOSED; return;
     }
 
     text_width := prepare_text(text);
