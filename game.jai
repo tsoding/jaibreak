@@ -119,6 +119,14 @@ pause: bool;
 // TODO: speeding up the ball over time
 // TODO: sound
 
+switch_to_start_state :: () {
+    proj_position = life_position(lifes);
+    proj_velocity = .{0, 0};
+
+    popup_show(*primary_popup, "Press A or D to move around");
+    state = .START;
+}
+
 switch_to_attach_state :: () {
     proj_position = life_position(lifes);
     proj_velocity = .{0, 0};
@@ -129,12 +137,9 @@ switch_to_attach_state :: () {
     state = .ATTACH;
 }
 
-switch_to_start_state :: () {
-    proj_position = life_position(lifes);
-    proj_velocity = .{0, 0};
-
-    popup_show(*primary_popup, "Press A or D to move around");
-    state = .START;
+switch_to_ready_state :: () {
+    if tutorial then popup_show(*primary_popup, "Press SPACE to start");
+    state = .READY;
 }
 
 particle_burst :: (area: Rect, color: Vector4, count: int) {
@@ -497,8 +502,7 @@ update :: (dt: float) {
                     proj_position += proj_velocity*dt;
                     if length(proj_position - anchor) < ATTACH_DISTANCE {
                         particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
-                        state = .READY;
-                        if tutorial then popup_show(*primary_popup, "Press SPACE to start");
+                        switch_to_ready_state();
                     }
                 }
             }
