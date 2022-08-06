@@ -39,6 +39,11 @@ popup_update :: (using popup: *Popup, dt: float) {
     }
 }
 
+popup_show :: (popup: *Popup, text: string) {
+    popup.state = .HIDDEN;
+    popup.text = text;
+}
+
 popup_dispose :: (using popup: *Popup) {
     if state == {
         case .HIDDEN; state = .DISPOSED;
@@ -128,9 +133,7 @@ switch_to_start_state :: () {
     proj_position = life_position(lifes);
     proj_velocity = .{0, 0};
 
-    primary_popup.state = .HIDDEN;
-    primary_popup.text = "Press A or D to move around";
-
+    popup_show(*primary_popup, "Press A or D to move around");
     state = .START;
 }
 
@@ -435,8 +438,7 @@ handle_proj_collision :: (c: Collision) {
                 particle_burst(bar_rect(bar_x), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
                 state = .GAMEOVER;
                 screen_fadeout = 0;
-                primary_popup.state = .HIDDEN;
-                primary_popup.text = "Game Over";
+                popup_show(*primary_popup, "Game Over");
             }
         }
 
@@ -496,10 +498,7 @@ update :: (dt: float) {
                     if length(proj_position - anchor) < ATTACH_DISTANCE {
                         particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
                         state = .READY;
-                        if tutorial {
-                            primary_popup.state = .HIDDEN;
-                            primary_popup.text = "Press SPACE to start";
-                        }
+                        if tutorial then popup_show(*primary_popup, "Press SPACE to start");
                     }
                 }
             }
@@ -507,10 +506,7 @@ update :: (dt: float) {
             case .GAMEOVER; {
                 if primary_popup.state == .DISPLAY && screen_fadeout < 1 {
                     screen_fadeout += dt/GAMEOVER_FADEOUT_TIME;
-                    if screen_fadeout >= 1 {
-                        secondary_popup.state = .HIDDEN;
-                        secondary_popup.text = "(press SPACE to restart)";
-                    }
+                    if screen_fadeout >= 1 then popup_show(*secondary_popup, "(press SPACE to restart)");
                 }
             }
         }
