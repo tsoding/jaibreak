@@ -365,7 +365,7 @@ Collision :: enum s64 {
     TARGET;
 }
 
-horz_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: float) -> Collision {
+horz_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: float, ignore_bar := false) -> Collision {
     nx := position.x + velocity.x*dt;
     if nx < 0 {
         velocity.x *= -1;
@@ -375,7 +375,7 @@ horz_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
         velocity.x *= -1;
         return .BORDER_RIGHT;
     }
-    if state != .GAMEOVER && overlaps(make_rect(nx, position.y, size.x, size.y), bar_rect(bar_x)) {
+    if !ignore_bar && overlaps(make_rect(nx, position.y, size.x, size.y), bar_rect(bar_x)) {
         velocity.x *= -1;
         return .BAR;
     }
@@ -389,7 +389,7 @@ horz_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
     return .NO;
 }
 
-vert_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: float) -> Collision {
+vert_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: float, ignore_bar := false) -> Collision {
     ny := position.y + velocity.y*dt;
     if ny < 0 {
         velocity.y *= -1;
@@ -399,7 +399,7 @@ vert_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
         velocity.y *= -1;
         return .BORDER_BOTTOM;
     }
-    if state != .GAMEOVER && overlaps(make_rect(position.x, ny, size.x, size.y), bar_rect(bar_x)) {
+    if !ignore_bar && state != .GAMEOVER && overlaps(make_rect(position.x, ny, size.x, size.y), bar_rect(bar_x)) {
         velocity.y *= -1;
         return .BAR;
     }
@@ -523,8 +523,8 @@ update :: (dt: float) {
         for * particles {
             if it.lifetime > 0 {
                 size := it.size_factor*make_vector2(PARTICLE_BASE_SIZE, PARTICLE_BASE_SIZE);
-                horz_collision(*it.position, *it.velocity, size, dt);
-                vert_collision(*it.position, *it.velocity, size, dt);
+                horz_collision(*it.position, *it.velocity, size, dt, state == .GAMEOVER);
+                vert_collision(*it.position, *it.velocity, size, dt, state == .GAMEOVER);
                 it.lifetime -= dt;
             }
         }
