@@ -3,11 +3,11 @@
 
 Popup :: struct {
     state: enum {
+        DISPOSED;
         HIDDEN;
         FADEIN;
         DISPLAY;
         FADEOUT;
-        DISPOSED;
     };
     text: string;
     a: float; // 0..1
@@ -56,48 +56,6 @@ popup_dispose :: (using popup: *Popup) {
     }
 }
 
-Popup_Deck :: struct {
-    active: bool;
-    popup: Popup;
-    next_popup_text: string;
-}
-
-popup_deck_push :: (using deck: *Popup_Deck, text: string) {
-    if active {
-        popup_dispose(*popup);
-        next_popup_text = text;
-    } else {
-        popup.text = text;
-        popup.state = .HIDDEN;
-        popup.a = 0;
-        active = true;
-    }
-}
-
-popup_deck_dispose :: (using deck: *Popup_Deck) {
-    if active then popup_dispose(*popup);
-}
-
-popup_deck_render :: (using deck: *Popup_Deck) {
-    if active then popup_render(*popup);
-}
-
-popup_deck_update :: (using deck: *Popup_Deck, dt: float) {
-    if active {
-        popup_update(*popup, dt);
-        if popup.state == .DISPOSED {
-            if next_popup_text.count > 0 {
-                popup.text = next_popup_text;
-                popup.state = .HIDDEN;
-                popup.a = 0;
-                next_popup_text.count = 0;
-            } else {
-                active = false;
-            }
-        }
-    }
-}
-
 Target :: struct {
     position: Vector2;
     color: Vector4;
@@ -141,7 +99,7 @@ quit: bool;
 pause: bool;
 tutorial: bool;
 state: State;
-popup_deck : Popup_Deck;
+primary_popup : Popup;
 score: int;
 attach_cooldown: float;
 attach_velocity: float;
@@ -182,14 +140,14 @@ key_press :: (key: u32) {
             left = true;
             if state == .START {
                 state = .ATTACH_BALL_FROM_LIFEBAR;
-                popup_deck_dispose(*popup_deck);
+                popup_dispose(*primary_popup);
             }
         }
         case #char "D"; {
             right = true;
             if state == .START {
                 state = .ATTACH_BALL_FROM_LIFEBAR;
-                popup_deck_dispose(*popup_deck);
+                popup_dispose(*primary_popup);
             }
         }
         case 27; pause = !pause;
@@ -197,7 +155,7 @@ key_press :: (key: u32) {
             if state == {
                 case .READY; {
                     if tutorial {
-                        popup_deck_dispose(*popup_deck);
+                        popup_dispose(*primary_popup);
                         tutorial = false;
                     }
                     state = .PLAY;
@@ -210,7 +168,7 @@ key_press :: (key: u32) {
 
                 case .GAMEOVER; {
                     if screen_fadeout >= 1 {
-                        popup_deck_dispose(*popup_deck);
+                        popup_dispose(*primary_popup);
                         state = .RESTART;
 
                         bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
@@ -267,7 +225,8 @@ init_state :: () {
     tutorial = true;
     if tutorial {
         state = .START;
-        popup_deck_push(*popup_deck, "Press A or D to move around");
+        primary_popup.state = .HIDDEN;
+        primary_popup.text = "Press A or D to move around";
     } else {
         state = .ATTACH_BALL_FROM_LIFEBAR;
     }
@@ -455,7 +414,8 @@ handle_proj_collision :: (c: Collision) {
                 particle_burst(bar_rect(bar_x), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
                 state = .GAMEOVER;
                 screen_fadeout = 0;
-                popup_deck_push(*popup_deck, "Game Over");
+                primary_popup.state = .HIDDEN;
+                primary_popup.text = "Game Over";
             }
         }
 
@@ -473,7 +433,7 @@ update :: (dt: float) {
         if right then bar_dx +=  1;
         bar_collision(dt, proj_rect(proj_position));
 
-        popup_deck_update(*popup_deck, dt);
+        popup_update(*primary_popup, dt);
 
         if state == {
             case .RESTART; {
@@ -514,13 +474,16 @@ update :: (dt: float) {
                     if length(proj_position - anchor) < ATTACH_DISTANCE {
                         particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
                         state = .READY;
-                        if tutorial then popup_deck_push(*popup_deck, "Press SPACE to start");
+                        if tutorial {
+                            primary_popup.state = .HIDDEN;
+                            primary_popup.text = "Press SPACE to start";
+                        }
                     }
                 }
             }
 
             case .GAMEOVER; {
-                if popup_deck.popup.state == .DISPLAY && screen_fadeout < 1 {
+                if primary_popup.state == .DISPLAY && screen_fadeout < 1 {
                     screen_fadeout += dt/GAMEOVER_FADEOUT_TIME;
                 }
             }
@@ -627,7 +590,7 @@ render :: () {
         pause_text_width := prepare_text("Pause");
         draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2 + text_height/4, TEXT_COLOR);
     } else {
-        popup_deck_render(*popup_deck);
+        popup_render(*primary_popup);
     }
     #if DEBUG {
         debug_text_width := prepare_text("Debug");
