@@ -91,8 +91,8 @@ left := false;
 right := false;
 particles : [256]Particle;
 targets : [..]Target;
-bar_x:   float;
-bar_dx:  float;
+bar_x: float;
+bar_dx: float;
 proj_position: Vector2;
 proj_velocity: Vector2;
 score: int;
@@ -115,12 +115,23 @@ pause: bool;
 // TODO: sound
 
 switch_to_attach_state :: () {
-    bonus_score = 0;
     proj_position = life_position(lifes);
     proj_velocity = .{0, 0};
+
     attach_cooldown = ATTACH_COOLDOWN;
     attach_velocity = 0;
+
     state = .ATTACH;
+}
+
+switch_to_start_state :: () {
+    proj_position = life_position(lifes);
+    proj_velocity = .{0, 0};
+
+    primary_popup.state = .HIDDEN;
+    primary_popup.text = "Press A or D to move around";
+
+    state = .START;
 }
 
 particle_burst :: (area: Rect, color: Vector4, count: int) {
@@ -186,7 +197,7 @@ key_press :: (key: u32) {
                         popup_dispose(*secondary_popup);
                         state = .RESTART;
 
-                        bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
+                        center_bar();
                         score = 0;
                         lifes = 3;
                         proj_position = life_position(lifes);
@@ -205,9 +216,7 @@ key_release :: (key: u32) {
     }
 }
 
-init_state :: () {
-    bonus_score = 0;
-
+allocate_targets :: () {
     target_grid_width := (TARGET_COLS*TARGET_WIDTH + (TARGET_COLS - 1)*TARGET_PADDING_X);
     target_grid_x := WINDOW_WIDTH/2 - target_grid_width/2;
 
@@ -231,23 +240,24 @@ init_state :: () {
             array_add(*targets, target);
         }
     }
+}
 
+center_bar :: () {
     bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
-    bar_dx = 0;
-    pause = false;
+}
+
+init_state :: () {
+    allocate_targets();
+    center_bar();
+    lifes = 3;
+
     // TODO: save the fact that the player already passed the tutorial
     tutorial = true;
     if tutorial {
-        state = .START;
-        primary_popup.state = .HIDDEN;
-        primary_popup.text = "Press A or D to move around";
+        switch_to_start_state();
     } else {
         switch_to_attach_state();
     }
-    score = 0;
-    lifes = 3;
-    proj_position = life_position(lifes);
-    attach_cooldown = ATTACH_COOLDOWN;
 }
 
 Rect :: struct {
@@ -402,6 +412,7 @@ life_position :: (index: int) -> Vector2 {
 handle_proj_collision :: (c: Collision) {
     if c == {
         case .BAR; {
+            bonus_score = 0;
             particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
             if bar_dx != 0 {
                 proj_velocity.x = bar_dx*PROJ_SPEED;
@@ -411,10 +422,11 @@ handle_proj_collision :: (c: Collision) {
                 }
                 proj_velocity.x = sign(proj_velocity.x)*PROJ_SPEED*ANGLE_FACTOR;
             }
-            bonus_score = 0;
+
         }
 
         case .BORDER_BOTTOM; {
+            bonus_score = 0;
             particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
             if lifes > 0 {
                 lifes = max(lifes - 1, 0);
