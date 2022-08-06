@@ -1,6 +1,143 @@
 #import "Basic";
 #import "Math";
 
+init :: () {
+    allocate_targets();
+    center_bar();
+    lifes = 3;
+
+    // TODO: save the fact that the player already passed the tutorial
+    tutorial = true;
+    if tutorial {
+        switch_to_start_state();
+    } else {
+        switch_to_attach_state();
+    }
+}
+
+update :: (dt: float) {
+    update_game(dt);
+    render_game();
+    reset_temporary_storage();
+}
+
+key_press :: (key: u32) {
+    if key == {
+        case #char "A"; {
+            left = true;
+            if state == .START {
+                popup_dispose(*primary_popup);
+                switch_to_attach_state();
+            }
+        }
+        case #char "D"; {
+            right = true;
+            if state == .START {
+                popup_dispose(*primary_popup);
+                switch_to_attach_state();
+            }
+        }
+        case 27; pause = !pause;
+        case #char " "; if !pause {
+            if state == {
+                case .READY; switch_to_play_state();
+                case .GAMEOVER; if curtain >= 1 then switch_to_restart_state();
+            }
+        }
+    }
+}
+
+key_release :: (key: u32) {
+    if key == {
+        case #char "A"; left = false;
+        case #char "D"; right = false;
+    }
+}
+
+update_game :: (dt: float) {
+    if !pause {
+        update_bar(dt);
+        update_both_popups(dt);
+        update_particles(dt);
+
+        if state == {
+            case .RESTART; {
+                if curtain > 0 {
+                    curtain -= dt/POPUP_FADEOUT_TIME;
+                } else {
+                    curtain = 0;
+                    switch_to_attach_state();
+                }
+            }
+
+            case .READY; {
+                proj_velocity = .{0, 0};
+                proj_position = bar_anchor(bar_x);
+            }
+
+            case .PLAY; {
+                handle_proj_collision(horz_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
+                handle_proj_collision(vert_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
+            }
+
+            case .ATTACH; {
+                if attach_cooldown > 0 {
+                    attach_cooldown -= dt;
+                } else {
+                    anchor := bar_anchor(bar_x);
+                    proj_velocity = anchor - proj_position;
+                    len := length(proj_velocity);
+                    if len > 0 {
+                        attach_velocity += ATTACH_ACCELERATION*dt;
+                        proj_velocity /= len;
+                        proj_velocity *= attach_velocity;
+                    }
+                    proj_position += proj_velocity*dt;
+                    if length(proj_position - anchor) < ATTACH_DISTANCE {
+                        particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
+                        switch_to_ready_state();
+                    }
+                }
+            }
+
+            case .GAMEOVER; {
+                if primary_popup.state == .DISPLAY && curtain < 1 {
+                    curtain += dt/GAMEOVER_FADEOUT_TIME;
+                    if curtain >= 1 then popup_show(*secondary_popup, "(press SPACE to restart)");
+                }
+            }
+        }
+    }
+}
+
+render_game :: () {
+    render_background();
+    render_particles();
+    render_targets();
+
+    if state != .GAMEOVER {
+        render_proj();
+        render_bar();
+    }
+
+    // TODO: make the score and lifes semi-transparent when the projectile cross them
+    render_lifes();
+    render_score();
+    render_curtain();
+    render_both_popups();
+
+    text_height := cast(int)(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT);
+    if pause {
+        pause_text_width := prepare_text("Pause");
+        draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2 + text_height/4, TEXT_COLOR);
+    }
+
+    #if DEBUG {
+        debug_text_width := prepare_text("Debug");
+        draw_prepared_text(WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, DEBUG_PADDING_TOP + text_height, DEBUG_TEXT_COLOR);
+    }
+}
+
 Popup :: struct {
     state: enum {
         DISPOSED;
@@ -74,7 +211,26 @@ Particle :: struct {
     color: Vector4;
 }
 
-State :: enum {
+update_bar :: (dt: float) {
+    // TODO: slight ease in/out of the bar movement
+    bar_dx = 0;
+    if left  then bar_dx += -1;
+    if right then bar_dx +=  1;
+    bar_collision(dt, proj_rect(proj_position));
+}
+
+update_particles :: (dt: float) {
+    for * particles {
+        if it.lifetime > 0 {
+            size := it.size_factor*make_vector2(PARTICLE_BASE_SIZE, PARTICLE_BASE_SIZE);
+            horz_collision(*it.position, *it.velocity, size, dt, state == .GAMEOVER);
+            vert_collision(*it.position, *it.velocity, size, dt, state == .GAMEOVER);
+            it.lifetime -= dt;
+        }
+    }
+}
+
+State_Kind :: enum {
     // Waiting until the player proves that they can move (with A/D keys)
     START;
     // The ball from the life bar rapidly moving towards the paddle to attach to it
@@ -105,11 +261,11 @@ bonus_score: int;
 lifes: int;
 
 // Intermediate values for transitions and stuff
-state: State;
+state: State_Kind;
 tutorial: bool;
 attach_cooldown: float;
 attach_velocity: float;
-screen_fadeout: float;
+curtain: float;
 primary_popup : Popup;
 secondary_popup : Popup;
 
@@ -143,7 +299,7 @@ switch_to_ready_state :: () {
 }
 
 switch_to_game_over :: () {
-    screen_fadeout = 0;
+    curtain = 0;
     popup_show(*primary_popup, "Game Over");
     state = .GAMEOVER;
 }
@@ -200,39 +356,6 @@ particle_emit :: (position: Vector2, color: Vector4) {
     }
 }
 
-key_press :: (key: u32) {
-    if key == {
-        case #char "A"; {
-            left = true;
-            if state == .START {
-                popup_dispose(*primary_popup);
-                switch_to_attach_state();
-            }
-        }
-        case #char "D"; {
-            right = true;
-            if state == .START {
-                popup_dispose(*primary_popup);
-                switch_to_attach_state();
-            }
-        }
-        case 27; pause = !pause;
-        case #char " "; if !pause {
-            if state == {
-                case .READY; switch_to_play_state();
-                case .GAMEOVER; if screen_fadeout >= 1 then switch_to_restart_state();
-            }
-        }
-    }
-}
-
-key_release :: (key: u32) {
-    if key == {
-        case #char "A"; left = false;
-        case #char "D"; right = false;
-    }
-}
-
 allocate_targets :: () {
     target_grid_width := (TARGET_COLS*TARGET_WIDTH + (TARGET_COLS - 1)*TARGET_PADDING_X);
     target_grid_x := WINDOW_WIDTH/2 - target_grid_width/2;
@@ -261,20 +384,6 @@ allocate_targets :: () {
 
 center_bar :: () {
     bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
-}
-
-init :: () {
-    allocate_targets();
-    center_bar();
-    lifes = 3;
-
-    // TODO: save the fact that the player already passed the tutorial
-    tutorial = true;
-    if tutorial {
-        switch_to_start_state();
-    } else {
-        switch_to_attach_state();
-    }
 }
 
 Rect :: struct {
@@ -314,12 +423,7 @@ proj_rect :: (using position: Vector2) -> Rect {
 }
 
 proj_rect :: (x: float, y: float) -> Rect {
-    result : Rect = ---;
-    result.x = x;
-    result.y = y;
-    result.w = PROJ_SIZE;
-    result.h = PROJ_SIZE;
-    return result;
+    return make_rect(x, y, PROJ_SIZE, PROJ_SIZE);
 }
 
 bar_anchor :: (x: float) -> Vector2 {
@@ -460,80 +564,11 @@ handle_proj_collision :: (c: Collision) {
     }
 }
 
-update :: (dt: float) {
-    if !pause {
-        // TODO: slight ease in/out of the bar movement
-        bar_dx = 0;
-        if left  then bar_dx += -1;
-        if right then bar_dx +=  1;
-        bar_collision(dt, proj_rect(proj_position));
-
-        popup_update(*primary_popup, dt);
-        popup_update(*secondary_popup, dt);
-
-        if state == {
-            case .RESTART; {
-                if screen_fadeout > 0 {
-                    screen_fadeout -= dt/POPUP_FADEOUT_TIME;
-                } else {
-                    screen_fadeout = 0;
-                    switch_to_attach_state();
-                }
-            }
-
-            case .READY; {
-                proj_velocity = .{0, 0};
-                proj_position = bar_anchor(bar_x);
-            }
-
-            case .PLAY; {
-                handle_proj_collision(horz_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
-                handle_proj_collision(vert_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
-            }
-
-            case .ATTACH; {
-                if attach_cooldown > 0 {
-                    attach_cooldown -= dt;
-                    screen_fadeout -= dt/GAMEOVER_FADEOUT_TIME;
-                } else {
-                    anchor := bar_anchor(bar_x);
-                    proj_velocity = anchor - proj_position;
-                    len := length(proj_velocity);
-                    if len > 0 {
-                        attach_velocity += ATTACH_ACCELERATION*dt;
-                        proj_velocity /= len;
-                        proj_velocity *= attach_velocity;
-                    }
-                    proj_position += proj_velocity*dt;
-                    if length(proj_position - anchor) < ATTACH_DISTANCE {
-                        particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
-                        switch_to_ready_state();
-                    }
-                }
-            }
-
-            case .GAMEOVER; {
-                if primary_popup.state == .DISPLAY && screen_fadeout < 1 {
-                    screen_fadeout += dt/GAMEOVER_FADEOUT_TIME;
-                    if screen_fadeout >= 1 then popup_show(*secondary_popup, "(press SPACE to restart)");
-                }
-            }
-        }
-
-        for * particles {
-            if it.lifetime > 0 {
-                size := it.size_factor*make_vector2(PARTICLE_BASE_SIZE, PARTICLE_BASE_SIZE);
-                horz_collision(*it.position, *it.velocity, size, dt, state == .GAMEOVER);
-                vert_collision(*it.position, *it.velocity, size, dt, state == .GAMEOVER);
-                it.lifetime -= dt;
-            }
-        }
-    }
-
-    render();
-
-    reset_temporary_storage();
+update_both_popups :: (dt: float) {
+    popup_update(*primary_popup, dt);
+    popup_update(*secondary_popup, dt);
 }
+
 
 int_to_string :: (x: int, data: *u8) -> int {
     assert(x >= 0);
@@ -553,7 +588,7 @@ int_to_string :: (x: int, data: *u8) -> int {
     return count;
 }
 
-render_score :: (x: int) -> string {
+score_text :: (x: int) -> string {
     SCORE_BUFFER_CAP :: 64;
     score_buffer : []u8;
     score_buffer.data = talloc(SCORE_BUFFER_CAP);
@@ -582,9 +617,11 @@ render_debug_guides :: () {
     draw_vert_line(0, xx WINDOW_HEIGHT, WINDOW_WIDTH/2.0,  DEBUG_LINE_THICCNESS, DEBUG_LINE_COLOR);
 }
 
-render :: () {
+render_background :: () {
     fill_rect(make_rect(0, 0, xx WINDOW_WIDTH, xx WINDOW_HEIGHT), BACKGROUND_COLOR);
+}
 
+render_particles :: () {
     for particles {
         if it.lifetime > 0 {
             size := make_vector2(PARTICLE_BASE_SIZE, PARTICLE_BASE_SIZE)*it.size_factor;
@@ -593,40 +630,47 @@ render :: () {
             fill_rect(make_rect(it.position, size), color);
         }
     }
+}
 
+render_targets :: () {
     for targets if !it.dead then fill_rect(target_rect(it), it.color);
-    if state != .GAMEOVER {
-        fill_rect(proj_rect(proj_position), PROJ_COLOR);
-        fill_rect(bar_rect(bar_x), BAR_COLOR);
-    }
+}
 
-    // TODO: make the score and lifes semi-transparent when the projectile cross them
+render_proj :: () {
+    fill_rect(proj_rect(proj_position), PROJ_COLOR);
+}
+
+render_bar :: () {
+    fill_rect(bar_rect(bar_x), BAR_COLOR);
+}
+
+render_lifes :: () {
     for i: 0..lifes-1 {
         position := life_position(i);
         fill_rect(make_rect(position.x, position.y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
     }
+}
 
+render_score :: () {
     // TODO: it would be cool if we could use tprint here, but tprint uses assembly right now
     /* score_text_width := prepare_text(tprint("Score: %", score)); */
     text_height := cast(int)(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT);
-    score_text_width := prepare_text(render_score(score));
+    score_text_width := prepare_text(score_text(score));
     draw_prepared_text(SCORE_PADDING_LEFT, SCORE_PADDING_TOP + text_height, TEXT_COLOR);
-    {
-        color := BACKGROUND_COLOR;
-        color.w = screen_fadeout;
-        fill_rect(make_rect(0, 0, xx WINDOW_WIDTH, xx WINDOW_HEIGHT), color);
-    }
-    /* render_debug_guides(); */
-    if pause {
-        pause_text_width := prepare_text("Pause");
-        draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2 + text_height/4, TEXT_COLOR);
-    } else {
+}
+
+render_curtain :: () {
+    color := BACKGROUND_COLOR;
+    color.w = curtain;
+    fill_rect(make_rect(0, 0, xx WINDOW_WIDTH, xx WINDOW_HEIGHT), color);
+}
+
+render_both_popups :: () {
+    if !pause {
+        text_height := cast(int)(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT);
         popup_render(*primary_popup, WINDOW_HEIGHT/2 + text_height/4);
         // TODO: make secondary popup smaller
         popup_render(*secondary_popup, WINDOW_HEIGHT/2 + text_height/4 + text_height + SECONDARY_POPUP_PADDING);
     }
-    #if DEBUG {
-        debug_text_width := prepare_text("Debug");
-        draw_prepared_text(WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, DEBUG_PADDING_TOP + text_height, DEBUG_TEXT_COLOR);
-    }
 }
+
