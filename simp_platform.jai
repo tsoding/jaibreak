@@ -110,7 +110,7 @@ draw_prepared_text :: (x: s64, y: s64, color := Vector4.{1, 1, 1, 1}) {
 }
 
 main :: () {
-    init_state();
+    init();
 
     window := create_window(window_name="Jaibreak", width=WINDOW_WIDTH, height=WINDOW_HEIGHT);
     actual_window_width = WINDOW_WIDTH;

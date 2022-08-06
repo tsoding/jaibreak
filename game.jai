@@ -92,8 +92,8 @@ State :: enum {
 }
 
 // The Game itself
-left := false;
-right := false;
+left: bool;
+right: bool;
 particles : [256]Particle;
 targets : [..]Target;
 bar_x: float;
@@ -142,6 +142,39 @@ switch_to_ready_state :: () {
     state = .READY;
 }
 
+switch_to_game_over :: () {
+    screen_fadeout = 0;
+    popup_show(*primary_popup, "Game Over");
+    state = .GAMEOVER;
+}
+
+switch_to_play_state :: () {
+    if tutorial {
+        popup_dispose(*primary_popup);
+        tutorial = false;
+    }
+    // TODO: direct angle factored projectile based on the last direction
+    proj_velocity.x = PROJ_SPEED*ANGLE_FACTOR;
+    proj_velocity.y = -PROJ_SPEED;
+    if left  then proj_velocity.x = -PROJ_SPEED;
+    if right then proj_velocity.x = PROJ_SPEED;
+    state = .PLAY;
+}
+
+switch_to_restart_state :: () {
+    popup_dispose(*primary_popup);
+    popup_dispose(*secondary_popup);
+
+    center_bar();
+    score = 0;
+    lifes = 3;
+    proj_position = life_position(lifes);
+    proj_velocity = .{0, 0};
+    for *targets it.dead = false;
+
+    state = .RESTART;
+}
+
 particle_burst :: (area: Rect, color: Vector4, count: int) {
     for 1..count {
         position : Vector2 = ---;
@@ -186,32 +219,8 @@ key_press :: (key: u32) {
         case 27; pause = !pause;
         case #char " "; if !pause {
             if state == {
-                case .READY; {
-                    if tutorial {
-                        popup_dispose(*primary_popup);
-                        tutorial = false;
-                    }
-                    state = .PLAY;
-                    // TODO: direct angle factored projectile based on the last direction
-                    proj_velocity.x = PROJ_SPEED*ANGLE_FACTOR;
-                    proj_velocity.y = -PROJ_SPEED;
-                    if left  then proj_velocity.x = -PROJ_SPEED;
-                    if right then proj_velocity.x = PROJ_SPEED;
-                }
-
-                case .GAMEOVER; {
-                    if screen_fadeout >= 1 {
-                        popup_dispose(*primary_popup);
-                        popup_dispose(*secondary_popup);
-                        state = .RESTART;
-
-                        center_bar();
-                        score = 0;
-                        lifes = 3;
-                        proj_position = life_position(lifes);
-                        for *targets it.dead = false;
-                    }
-                }
+                case .READY; switch_to_play_state();
+                case .GAMEOVER; if screen_fadeout >= 1 then switch_to_restart_state();
             }
         }
     }
@@ -254,7 +263,7 @@ center_bar :: () {
     bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
 }
 
-init_state :: () {
+init :: () {
     allocate_targets();
     center_bar();
     lifes = 3;
@@ -441,9 +450,7 @@ handle_proj_collision :: (c: Collision) {
                 switch_to_attach_state();
             } else {
                 particle_burst(bar_rect(bar_x), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
-                state = .GAMEOVER;
-                screen_fadeout = 0;
-                popup_show(*primary_popup, "Game Over");
+                switch_to_game_over();
             }
         }
 
@@ -470,9 +477,7 @@ update :: (dt: float) {
                     screen_fadeout -= dt/POPUP_FADEOUT_TIME;
                 } else {
                     screen_fadeout = 0;
-                    state = .ATTACH;
-                    attach_cooldown = ATTACH_COOLDOWN;
-                    attach_velocity = 0;
+                    switch_to_attach_state();
                 }
             }
 

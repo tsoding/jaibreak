@@ -55,5 +55,5 @@ heap_base_alloc :: (mode: Allocator_Mode, size: s64, old_size: s64, old_memory: 
 main :: () {
     set_context(*context);
     context.allocator = .{heap_base_alloc, null};
-    init_state();
+    init();
 }
