@@ -73,7 +73,7 @@ State :: enum {
     // Waiting until the player proves that they can move (with A/D keys)
     START;
     // The ball from the life bar rapidly moving towards the paddle to attach to it
-    ATTACH_BALL_FROM_LIFEBAR;
+    ATTACH;
     // The ball is attached to the paddle and waiting until the player presses SPACE
     READY;
     // Just the usual game play until the ball hits the bottom
@@ -114,6 +114,15 @@ pause: bool;
 // TODO: speeding up the ball over time
 // TODO: sound
 
+switch_to_attach_state :: () {
+    bonus_score = 0;
+    proj_position = life_position(lifes);
+    proj_velocity = .{0, 0};
+    attach_cooldown = ATTACH_COOLDOWN;
+    attach_velocity = 0;
+    state = .ATTACH;
+}
+
 particle_burst :: (area: Rect, color: Vector4, count: int) {
     for 1..count {
         position : Vector2 = ---;
@@ -144,15 +153,15 @@ key_press :: (key: u32) {
         case #char "A"; {
             left = true;
             if state == .START {
-                state = .ATTACH_BALL_FROM_LIFEBAR;
                 popup_dispose(*primary_popup);
+                switch_to_attach_state();
             }
         }
         case #char "D"; {
             right = true;
             if state == .START {
-                state = .ATTACH_BALL_FROM_LIFEBAR;
                 popup_dispose(*primary_popup);
+                switch_to_attach_state();
             }
         }
         case 27; pause = !pause;
@@ -233,7 +242,7 @@ init_state :: () {
         primary_popup.state = .HIDDEN;
         primary_popup.text = "Press A or D to move around";
     } else {
-        state = .ATTACH_BALL_FROM_LIFEBAR;
+        switch_to_attach_state();
     }
     score = 0;
     lifes = 3;
@@ -408,13 +417,8 @@ handle_proj_collision :: (c: Collision) {
         case .BORDER_BOTTOM; {
             particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
             if lifes > 0 {
-                state = .ATTACH_BALL_FROM_LIFEBAR;
-                bonus_score = 0;
                 lifes = max(lifes - 1, 0);
-                proj_position = life_position(lifes);
-                proj_velocity = .{0, 0};
-                attach_cooldown = ATTACH_COOLDOWN;
-                attach_velocity = 0;
+                switch_to_attach_state();
             } else {
                 particle_burst(bar_rect(bar_x), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
                 state = .GAMEOVER;
@@ -447,7 +451,7 @@ update :: (dt: float) {
                     screen_fadeout -= dt/POPUP_FADEOUT_TIME;
                 } else {
                     screen_fadeout = 0;
-                    state = .ATTACH_BALL_FROM_LIFEBAR;
+                    state = .ATTACH;
                     attach_cooldown = ATTACH_COOLDOWN;
                     attach_velocity = 0;
                 }
@@ -463,7 +467,7 @@ update :: (dt: float) {
                 handle_proj_collision(vert_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
             }
 
-            case .ATTACH_BALL_FROM_LIFEBAR; {
+            case .ATTACH; {
                 if attach_cooldown > 0 {
                     attach_cooldown -= dt;
                     screen_fadeout -= dt/GAMEOVER_FADEOUT_TIME;
