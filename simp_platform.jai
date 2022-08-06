@@ -126,6 +126,7 @@ main :: () {
     }
 
     last_time := get_time();
+    quit := false;
     while !quit {
         now := get_time();
         delta : float64 = now - last_time;

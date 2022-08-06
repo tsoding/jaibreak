@@ -95,7 +95,6 @@ bar_x:   float;
 bar_dx:  float;
 proj_position: Vector2;
 proj_velocity: Vector2;
-quit: bool;
 pause: bool;
 tutorial: bool;
 state: State;
@@ -219,7 +218,6 @@ init_state :: () {
 
     bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
     bar_dx = 0;
-    quit = false;
     pause = false;
     // TODO: save the fact that the player already passed the tutorial
     tutorial = true;
