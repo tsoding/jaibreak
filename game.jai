@@ -13,7 +13,7 @@ Popup :: struct {
     a: float; // 0..1
 }
 
-popup_render :: (using popup: *Popup) {
+popup_render :: (using popup: *Popup, y: int) {
     alpha : float = ---;
     if state == {
         case .HIDDEN;   return;
@@ -23,11 +23,10 @@ popup_render :: (using popup: *Popup) {
         case .DISPOSED; return;
     }
 
-    text_width := prepare_text(text);
-    text_height := cast(int)(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT);
     color := TEXT_COLOR;
     color.w = alpha;
-    draw_prepared_text(WINDOW_WIDTH/2 - text_width/2, WINDOW_HEIGHT/2 + text_height/4, color);
+    text_width := prepare_text(text);
+    draw_prepared_text(WINDOW_WIDTH/2 - text_width/2, y, color);
 }
 
 popup_update :: (using popup: *Popup, dt: float) {
@@ -99,6 +98,7 @@ pause: bool;
 tutorial: bool;
 state: State;
 primary_popup : Popup;
+secondary_popup : Popup;
 score: int;
 attach_cooldown: float;
 attach_velocity: float;
@@ -168,6 +168,7 @@ key_press :: (key: u32) {
                 case .GAMEOVER; {
                     if screen_fadeout >= 1 {
                         popup_dispose(*primary_popup);
+                        popup_dispose(*secondary_popup);
                         state = .RESTART;
 
                         bar_x = WINDOW_WIDTH/2 - BAR_LEN/2;
@@ -432,6 +433,7 @@ update :: (dt: float) {
         bar_collision(dt, proj_rect(proj_position));
 
         popup_update(*primary_popup, dt);
+        popup_update(*secondary_popup, dt);
 
         if state == {
             case .RESTART; {
@@ -483,6 +485,10 @@ update :: (dt: float) {
             case .GAMEOVER; {
                 if primary_popup.state == .DISPLAY && screen_fadeout < 1 {
                     screen_fadeout += dt/GAMEOVER_FADEOUT_TIME;
+                    if screen_fadeout >= 1 {
+                        secondary_popup.state = .HIDDEN;
+                        secondary_popup.text = "(press SPACE to restart)";
+                    }
                 }
             }
         }
@@ -588,7 +594,9 @@ render :: () {
         pause_text_width := prepare_text("Pause");
         draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2 + text_height/4, TEXT_COLOR);
     } else {
-        popup_render(*primary_popup);
+        popup_render(*primary_popup, WINDOW_HEIGHT/2 + text_height/4);
+        // TODO: make secondary popup smaller
+        popup_render(*secondary_popup, WINDOW_HEIGHT/2 + text_height/4 + text_height + SECONDARY_POPUP_PADDING);
     }
     #if DEBUG {
         debug_text_width := prepare_text("Debug");
