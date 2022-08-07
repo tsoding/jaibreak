@@ -23,6 +23,7 @@ update :: (dt: float) {
 
 key_press :: (key: u32) {
     if key == {
+        case #char "Q"; #if DEBUG then for *targets target_hit(it);
         case #char "A"; {
             left = true;
             if state == .START {
@@ -54,6 +55,19 @@ key_release :: (key: u32) {
     }
 }
 
+attach_to :: (dt: float, position: *Vector2, velocity: *Vector2, destination : Vector2) -> bool {
+    attach_velocity := length(velocity);
+    <<velocity = destination - position;
+    len := length(velocity);
+    if len > 0 {
+        attach_velocity += ATTACH_ACCELERATION*dt;
+        <<velocity /= len;
+        <<velocity *= attach_velocity;
+    }
+    <<position += <<velocity*dt;
+    return length(position - destination) < ATTACH_DISTANCE;
+}
+
 update_game :: (dt: float) {
     if !pause {
         update_bar(dt);
@@ -83,20 +97,9 @@ update_game :: (dt: float) {
             case .ATTACH; {
                 if attach_cooldown > 0 {
                     attach_cooldown -= dt;
-                } else {
-                    anchor := bar_anchor(bar_x);
-                    proj_velocity = anchor - proj_position;
-                    len := length(proj_velocity);
-                    if len > 0 {
-                        attach_velocity += ATTACH_ACCELERATION*dt;
-                        proj_velocity /= len;
-                        proj_velocity *= attach_velocity;
-                    }
-                    proj_position += proj_velocity*dt;
-                    if length(proj_position - anchor) < ATTACH_DISTANCE {
-                        particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
-                        switch_to_ready_state();
-                    }
+                } else if attach_to(dt, *proj_position, *proj_velocity, bar_anchor(bar_x)) {
+                    particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
+                    switch_to_ready_state();
                 }
             }
 
@@ -106,6 +109,38 @@ update_game :: (dt: float) {
                     if curtain >= 1 then popup_show(*secondary_popup, "(press SPACE to restart)");
                 }
             }
+
+            case .VICTORY; {
+                if attach_to(dt, *proj_position, *proj_velocity, life_position(lifes)) {
+                    particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_HIT_COUNT);
+                    if fallen_balls.count > 0 {
+                        lifes += 1;
+                        fallen_balls.count -= 1;
+                        proj_position = fallen_balls.data[fallen_balls.count];
+                        proj_velocity = .{0, 0};
+                        particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_HIT_COUNT);
+                    } else {
+                        switch_to_restore_targets();
+                    }
+                }
+            }
+
+            case .RESTORE_TARGETS; {
+                finished := true;
+                for *targets {
+                    if it.dead {
+                        finished = false;
+                        if it.waiting > 0 {
+                            it.waiting -= dt;
+                        } else if attach_to(dt, *it.position, *it.velocity, it.destination) {
+                            it.position = it.destination;
+                            it.dead = false;
+                            alive_targets_count += 1;
+                        }
+                    }
+                }
+                if finished then switch_to_attach_state();
+            }
         }
     }
 }
@@ -113,7 +148,7 @@ update_game :: (dt: float) {
 render_game :: () {
     render_background();
     render_particles();
-    render_targets();
+    render_targets(state == .RESTORE_TARGETS);
 
     if state != .GAMEOVER {
         render_proj();
@@ -179,6 +214,7 @@ popup_update :: (using popup: *Popup, dt: float) {
 popup_show :: (popup: *Popup, text: string) {
     popup.state = .HIDDEN;
     popup.text = text;
+    popup.a = 0;
 }
 
 popup_dispose :: (using popup: *Popup) {
@@ -199,6 +235,9 @@ popup_dispose :: (using popup: *Popup) {
 
 Target :: struct {
     position: Vector2;
+    destination: Vector2;
+    velocity: Vector2;
+    waiting: float;
     color: Vector4;
     dead: bool;
 }
@@ -223,8 +262,9 @@ update_particles :: (dt: float) {
     for * particles {
         if it.lifetime > 0 {
             size := it.size_factor*make_vector2(PARTICLE_BASE_SIZE, PARTICLE_BASE_SIZE);
-            horz_collision(*it.position, *it.velocity, size, dt, state == .GAMEOVER);
-            vert_collision(*it.position, *it.velocity, size, dt, state == .GAMEOVER);
+            ignore_bar := state == .GAMEOVER;
+            horz_collision(*it.position, *it.velocity, size, dt, ignore_bar);
+            vert_collision(*it.position, *it.velocity, size, dt, ignore_bar);
             it.lifetime -= dt;
         }
     }
@@ -245,6 +285,7 @@ State_Kind :: enum {
     RESTART;
     // Destroyed all the targets
     VICTORY;
+    RESTORE_TARGETS;
 }
 
 // The Game itself
@@ -252,6 +293,8 @@ left: bool;
 right: bool;
 particles : [256]Particle;
 targets : [..]Target;
+fallen_balls : [..]Vector2;
+alive_targets_count: int;
 bar_x: float;
 bar_dx: float;
 proj_position: Vector2;
@@ -264,7 +307,6 @@ lifes: int;
 state: State_Kind;
 tutorial: bool;
 attach_cooldown: float;
-attach_velocity: float;
 curtain: float;
 primary_popup : Popup;
 secondary_popup : Popup;
@@ -275,6 +317,11 @@ pause: bool;
 // TODO: speeding up the ball over time
 // TODO: sound
 // TODO: victory
+
+some_dead_target :: () -> *Target {
+    for *targets if it.dead return it;
+    return null;
+}
 
 switch_to_start_state :: () {
     proj_position = life_position(lifes);
@@ -287,9 +334,7 @@ switch_to_start_state :: () {
 switch_to_attach_state :: () {
     proj_position = life_position(lifes);
     proj_velocity = .{0, 0};
-
     attach_cooldown = ATTACH_COOLDOWN;
-    attach_velocity = 0;
 
     state = .ATTACH;
 }
@@ -303,6 +348,22 @@ switch_to_game_over :: () {
     curtain = 0;
     popup_show(*primary_popup, "Game Over");
     state = .GAMEOVER;
+}
+
+switch_to_victory :: () {
+    state = .VICTORY;
+}
+
+switch_to_restore_targets :: () {
+    for *targets {
+        it.dead = true;
+        it.destination = it.position;
+        it.position.y += WINDOW_HEIGHT;
+        it.velocity = .{0, 0};
+        it.waiting = TARGETS_RESTORE_DELAY*it_index;
+    }
+    proj_position = life_position(lifes);
+    state = .RESTORE_TARGETS;
 }
 
 switch_to_play_state :: () {
@@ -328,6 +389,8 @@ switch_to_restart_state :: () {
     proj_position = life_position(lifes);
     proj_velocity = .{0, 0};
     for *targets it.dead = false;
+    alive_targets_count = targets.count;
+    array_reset_keeping_memory(*fallen_balls);
 
     state = .RESTART;
 }
@@ -381,6 +444,7 @@ allocate_targets :: () {
             array_add(*targets, target);
         }
     }
+    alive_targets_count = targets.count;
 }
 
 center_bar :: () {
@@ -458,6 +522,11 @@ target_hit :: (target: *Target) {
     // TODO: indicate how much score points you've got by showing a fading sign with the number at the point of the impact
     score += 1 + bonus_score;
     bonus_score += 1;
+    alive_targets_count -= 1;
+    if alive_targets_count <= 0 then {
+        bonus_score = 0;
+        switch_to_victory();
+    }
 }
 
 Collision :: enum s64 {
@@ -548,6 +617,7 @@ handle_proj_collision :: (c: Collision) {
         }
 
         case .BORDER_BOTTOM; {
+            array_add(*fallen_balls, proj_position);
             bonus_score = 0;
             particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
             if lifes > 0 {
@@ -633,8 +703,12 @@ render_particles :: () {
     }
 }
 
-render_targets :: () {
-    for targets if !it.dead then fill_rect(target_rect(it), it.color);
+render_targets :: (render_all := false) {
+    for targets {
+        if render_all || !it.dead {
+            fill_rect(target_rect(it), it.color);
+        }
+    }
 }
 
 render_proj :: () {
