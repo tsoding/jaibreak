@@ -23,7 +23,11 @@ update :: (dt: float) {
 
 key_press :: (key: u32) {
     if key == {
-        case #char "Q"; #if DEBUG then for *targets target_hit(it);
+        case #char "Q"; #if DEBUG {
+            if state != .RESTORE_TARGETS {
+                for *targets target_hit(it);
+            }
+        }
         case #char "A"; {
             left = true;
             if state == .START {
@@ -112,7 +116,6 @@ update_game :: (dt: float) {
 
             case .VICTORY; {
                 if attach_to(dt, *proj_position, *proj_velocity, life_position(lifes)) {
-                    particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_HIT_COUNT);
                     if fallen_balls.count > 0 {
                         lifes += 1;
                         fallen_balls.count -= 1;
@@ -135,7 +138,6 @@ update_game :: (dt: float) {
                         } else if attach_to(dt, *it.position, *it.velocity, it.destination) {
                             it.position = it.destination;
                             it.dead = false;
-                            alive_targets_count += 1;
                         }
                     }
                 }
@@ -294,7 +296,6 @@ right: bool;
 particles : [256]Particle;
 targets : [..]Target;
 fallen_balls : [..]Vector2;
-alive_targets_count: int;
 bar_x: float;
 bar_dx: float;
 proj_position: Vector2;
@@ -389,7 +390,6 @@ switch_to_restart_state :: () {
     proj_position = life_position(lifes);
     proj_velocity = .{0, 0};
     for *targets it.dead = false;
-    alive_targets_count = targets.count;
     array_reset_keeping_memory(*fallen_balls);
 
     state = .RESTART;
@@ -444,7 +444,6 @@ allocate_targets :: () {
             array_add(*targets, target);
         }
     }
-    alive_targets_count = targets.count;
 }
 
 center_bar :: () {
@@ -516,14 +515,19 @@ overlaps :: (a: Rect, b: Rect) -> bool {
     return !(Ra < Lb || Rb < La || Ba < Tb || Bb < Ta);
 }
 
+all_targets_dead :: () -> bool {
+    for targets if !it.dead return false;
+    return true;
+}
+
 target_hit :: (target: *Target) {
+    if target.dead return;
     particle_burst(target_rect(target), target.color, PARTICLE_BURST_HIT_COUNT + bonus_score*2);
     target.dead = true;
     // TODO: indicate how much score points you've got by showing a fading sign with the number at the point of the impact
     score += 1 + bonus_score;
     bonus_score += 1;
-    alive_targets_count -= 1;
-    if alive_targets_count <= 0 then {
+    if all_targets_dead() {
         bonus_score = 0;
         switch_to_victory();
     }
