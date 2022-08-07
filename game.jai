@@ -274,6 +274,7 @@ pause: bool;
 
 // TODO: speeding up the ball over time
 // TODO: sound
+// TODO: victory
 
 switch_to_start_state :: () {
     proj_position = life_position(lifes);
