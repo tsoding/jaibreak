@@ -23,11 +23,7 @@ update :: (dt: float) {
 
 key_press :: (key: u32) {
     if key == {
-        case #char "Q"; #if DEBUG {
-            if state != .RESTORE_TARGETS {
-                for *targets target_hit(it);
-            }
-        }
+        case #char "Q"; #if DEBUG if state == .PLAY for *targets target_hit(it);
         case #char "A"; {
             left = true;
             if state == .START {
