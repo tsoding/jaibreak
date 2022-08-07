@@ -111,6 +111,7 @@ update_game :: (dt: float) {
             }
 
             case .VICTORY; {
+                // TODO: wait a little bit before restoring lifes
                 if attach_to(dt, *proj_position, *proj_velocity, life_position(lifes)) {
                     if fallen_balls.count > 0 {
                         lifes += 1;

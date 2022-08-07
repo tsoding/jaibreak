@@ -83,6 +83,7 @@ actual_window_height: int;
 actual_window_offset_x: int;
 actual_window_offset_y: int;
 
+// TODO: off camera culling for Simp platform
 fill_rect :: (rect: Rect, color: Vector4) {
     #if DEBUG {
         colored_rect : Colored_Rect = ---;
