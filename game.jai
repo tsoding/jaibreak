@@ -322,7 +322,6 @@ pause: bool;
 
 // TODO: speeding up the ball over time
 // TODO: sound
-// TODO: victory
 
 some_dead_target :: () -> *Target {
     for *targets if it.dead return it;
