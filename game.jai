@@ -55,6 +55,12 @@ key_release :: (key: u32) {
     }
 }
 
+wait_for :: (dt: float, t: *float, duration: float) -> bool {
+    if <<t >= 1 return true;
+    <<t += dt/duration;
+    return false;
+}
+
 attach_to :: (dt: float, position: *Vector2, velocity: *Vector2, destination : Vector2) -> bool {
     attach_velocity := length(velocity);
     <<velocity = destination - position;
@@ -95,11 +101,11 @@ update_game :: (dt: float) {
             }
 
             case .ATTACH; {
-                if attach_cooldown > 0 {
-                    attach_cooldown -= dt;
-                } else if attach_to(dt, *proj_position, *proj_velocity, bar_anchor(bar_x)) {
-                    particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
-                    switch_to_ready_state();
+                if wait_for(dt, *attach_cooldown, ATTACH_COOLDOWN) {
+                    if attach_to(dt, *proj_position, *proj_velocity, bar_anchor(bar_x)) {
+                        particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
+                        switch_to_ready_state();
+                    }
                 }
             }
 
@@ -111,16 +117,17 @@ update_game :: (dt: float) {
             }
 
             case .VICTORY; {
-                // TODO: wait a little bit before restoring lifes
-                if attach_to(dt, *proj_position, *proj_velocity, life_position(lifes)) {
-                    if fallen_balls.count > 0 {
-                        lifes += 1;
-                        fallen_balls.count -= 1;
-                        proj_position = fallen_balls.data[fallen_balls.count];
-                        proj_velocity = .{0, 0};
-                        particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_HIT_COUNT);
-                    } else {
-                        switch_to_restore_targets();
+                if wait_for(dt, *victory_cooldown, VICTORY_COOLDOWN) {
+                    if attach_to(dt, *proj_position, *proj_velocity, life_position(lifes)) {
+                        if fallen_balls.count > 0 {
+                            lifes += 1;
+                            fallen_balls.count -= 1;
+                            proj_position = fallen_balls.data[fallen_balls.count];
+                            proj_velocity = .{0, 0};
+                            particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_HIT_COUNT);
+                        } else {
+                            switch_to_restore_targets();
+                        }
                     }
                 }
             }
@@ -305,6 +312,7 @@ lifes: int;
 state: State_Kind;
 tutorial: bool;
 attach_cooldown: float;
+victory_cooldown: float;
 curtain: float;
 primary_popup : Popup;
 secondary_popup : Popup;
@@ -332,7 +340,7 @@ switch_to_start_state :: () {
 switch_to_attach_state :: () {
     proj_position = life_position(lifes);
     proj_velocity = .{0, 0};
-    attach_cooldown = ATTACH_COOLDOWN;
+    attach_cooldown = 0;
 
     state = .ATTACH;
 }
@@ -349,6 +357,7 @@ switch_to_game_over :: () {
 }
 
 switch_to_victory :: () {
+    victory_cooldown = 0;
     state = .VICTORY;
 }
 
