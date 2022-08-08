@@ -717,10 +717,9 @@ score_text :: (x: int) -> string {
     score_buffer.count = SCORE_BUFFER_CAP;
 
     #if LANG == .RU {
-        score_label :: "Счет: ";
+        score_label :: "Очки: ";
     } else #if LANG == .UA {
-        // TODO: score_label is too big in Ukrainian language
-        score_label :: "Рахунок: ";
+        score_label :: "Очки: ";
     } else {
         score_label :: "Score: ";
     }
