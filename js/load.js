@@ -142,9 +142,17 @@ WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
     window.requestAnimationFrame(first);
 
     document.addEventListener('keydown', (e) => {
-        key_press(context, e.keyCode);
+        switch (e.key) {
+        case "ArrowLeft":  key_press(context, 130); break;
+        case "ArrowRight": key_press(context, 131); break;
+        default:           key_press(context, e.keyCode);
+        }
     });
     document.addEventListener('keyup', (e) => {
-        key_release(context, e.keyCode);
+        switch (e.key) {
+        case "ArrowLeft":  key_release(context, 130); break;
+        case "ArrowRight": key_release(context, 131); break;
+        default:           key_release(context, e.keyCode);
+        }
     });
 }).catch(console.error);

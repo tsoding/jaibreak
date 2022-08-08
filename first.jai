@@ -165,7 +165,6 @@ build_wasm_platform :: () {
     set_build_options(bo, w);
 
     compiler_begin_intercept(w);
-    gen_params_static();
     add_build_string(tprint("DEBUG :: false;"), w);
     add_build_file("gen_params_static.jai", w);
     add_build_file("game.jai", w);
@@ -193,7 +192,6 @@ build_release :: () {
 
     add_build_string(tprint("DEBUG :: false;"), w);
 
-    gen_params_static();
 
     add_build_file(PARAMS_STATIC_FILEPATH, w);
     add_build_file("./game.jai", w);
@@ -214,7 +212,6 @@ build_debug :: () {
     add_build_string(tprint("DEBUG :: true;"), w);
     add_build_file("params_loader.jai", w);
 
-    gen_params_dynamic();
 
     add_build_file(PARAMS_DYNAMIC_FILEPATH, w);
     add_build_file("./game.jai", w);
@@ -225,6 +222,10 @@ build_debug :: () {
     if !load_params_from_file(PARAMS_CONF_FILEPATH) {
         exit(1);
     }
+
+    // TODO: generate param code via add_build_string()
+    gen_params_static();
+    gen_params_dynamic();
 
     build_release();
     build_debug();

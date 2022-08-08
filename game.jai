@@ -1,6 +1,12 @@
 #import "Basic";
 #import "Math";
 
+LANG : enum {
+    EN;
+    RU;
+    UA;
+} : .EN;
+
 init :: () {
     allocate_targets();
     center_bar();
@@ -24,6 +30,7 @@ update :: (dt: float) {
 key_press :: (key: u32) {
     if key == {
         case #char "Q"; #if DEBUG if state == .PLAY for *targets target_hit(it);
+        case 130; #through;
         case #char "A"; {
             left = true;
             if state == .START {
@@ -31,6 +38,7 @@ key_press :: (key: u32) {
                 switch_to_attach_state();
             }
         }
+        case 131; #through;
         case #char "D"; {
             right = true;
             if state == .START {
@@ -50,8 +58,8 @@ key_press :: (key: u32) {
 
 key_release :: (key: u32) {
     if key == {
-        case #char "A"; left = false;
-        case #char "D"; right = false;
+        case 130; #through; case #char "A"; left = false;
+        case 131; #through; case #char "D"; right = false;
     }
 }
 
@@ -112,7 +120,15 @@ update_game :: (dt: float) {
             case .GAMEOVER; {
                 if primary_popup.state == .DISPLAY && curtain < 1 {
                     curtain += dt/GAMEOVER_FADEOUT_TIME;
-                    if curtain >= 1 then popup_show(*secondary_popup, "(press SPACE to restart)");
+                    if curtain >= 1 {
+                        #if LANG == .RU {
+                            popup_show(*secondary_popup, "(нажми ПРОБЕЛ, чтобы начать заново)");
+                        } else #if LANG == .UA {
+                            popup_show(*secondary_popup, "(натисни ПРОБІЛ, щоб почати знову)");
+                        } else {
+                            popup_show(*secondary_popup, "(press SPACE to restart)");
+                        }
+                    }
                 }
             }
 
@@ -169,7 +185,13 @@ render_game :: () {
 
     text_height := cast(int)(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT);
     if pause {
-        pause_text_width := prepare_text("Pause");
+        #if LANG == .RU {
+            pause_text_width := prepare_text("Пауза");
+        } else #if LANG == .UA {
+            pause_text_width := prepare_text("Пауза");
+        } else {
+            pause_text_width := prepare_text("Pause");
+        }
         draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2 + text_height/4, TEXT_COLOR);
     }
 
@@ -209,10 +231,10 @@ popup_render :: (using popup: *Popup, y: int) {
 
 popup_update :: (using popup: *Popup, dt: float) {
     if state == {
-        case .HIDDEN;  if a < 1.0 then a += dt/POPUP_HIDDEN_TIME;  else { a = 0; state = .FADEIN;  }
-        case .FADEIN;  if a < 1.0 then a += dt/POPUP_FADEIN_TIME;  else { a = 0; state = .DISPLAY; }
+        case .HIDDEN;   if wait_for(dt, *a, POPUP_HIDDEN_TIME)  { a = 0; state = .FADEIN;   }
+        case .FADEIN;   if wait_for(dt, *a, POPUP_FADEIN_TIME)  { a = 0; state = .DISPLAY;  }
         case .DISPLAY;
-        case .FADEOUT; if a < 1.0 then a += dt/POPUP_FADEOUT_TIME; else { a = 0; state = .DISPOSED; }
+        case .FADEOUT;  if wait_for(dt, *a, POPUP_FADEOUT_TIME) { a = 0; state = .DISPOSED; }
         case .DISPOSED;
     }
 }
@@ -332,7 +354,13 @@ switch_to_start_state :: () {
     proj_position = life_position(lifes);
     proj_velocity = .{0, 0};
 
-    popup_show(*primary_popup, "Press A or D to move around");
+    #if LANG == .RU {
+        popup_show(*primary_popup, "Нажми стрелки ВЛЕВО или ВПРАВО чтобы двигаться");
+    } else #if LANG == .UA {
+        popup_show(*primary_popup, "Натисни стрілки ВЛІВО або ВПРАВО щоб рухатися");
+    } else {
+        popup_show(*primary_popup, "Press arrows LEFT or RIGHT to move around");
+    }
     state = .START;
 }
 
@@ -345,13 +373,27 @@ switch_to_attach_state :: () {
 }
 
 switch_to_ready_state :: () {
-    if tutorial then popup_show(*primary_popup, "Press SPACE to start");
+    if tutorial {
+        #if LANG == .RU {
+            popup_show(*primary_popup, "Нажми ПРОБЕЛ чтобы начать");
+        } else #if LANG == .UA {
+            popup_show(*primary_popup, "Натисни ПРОБІЛ щоб почати");
+        } else {
+            popup_show(*primary_popup, "Press SPACE to start");
+        }
+    }
     state = .READY;
 }
 
 switch_to_game_over :: () {
     curtain = 0;
-    popup_show(*primary_popup, "Game Over");
+    #if LANG == .RU {
+        popup_show(*primary_popup, "Конец Игры");
+    } else #if LANG == .UA {
+        popup_show(*primary_popup, "Кінець Гри");
+    } else {
+        popup_show(*primary_popup, "Game Over");
+    }
     state = .GAMEOVER;
 }
 
@@ -674,7 +716,14 @@ score_text :: (x: int) -> string {
     score_buffer.data = talloc(SCORE_BUFFER_CAP);
     score_buffer.count = SCORE_BUFFER_CAP;
 
-    score_label :: "Score: ";
+    #if LANG == .RU {
+        score_label :: "Счет: ";
+    } else #if LANG == .UA {
+        // TODO: score_label is too big in Ukrainian language
+        score_label :: "Рахунок: ";
+    } else {
+        score_label :: "Score: ";
+    }
     memcpy(score_buffer.data, score_label.data, score_label.count);
     count := int_to_string(x, score_buffer.data + score_label.count);
 
@@ -757,4 +806,3 @@ render_both_popups :: () {
         popup_render(*secondary_popup, WINDOW_HEIGHT/2 + text_height/4 + text_height + SECONDARY_POPUP_PADDING);
     }
 }
-
