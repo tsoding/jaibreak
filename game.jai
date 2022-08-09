@@ -9,6 +9,8 @@ I18N_Lang :: enum {
     RU;
     UA;
     HU;
+    ES;
+    GL;
 }
 I18N_LANG_COUNT :: #run enum_names(I18N_Lang).count;
 
@@ -100,6 +102,7 @@ I18N_Spanish :: #run -> I18N_Table {
     msgs[PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND] = "Presione las flechas IZQUIERDA o DERECHA para moverte";
     msgs[PRESS_SPACE_TO_START] = "Presione ESPACIO para empezar";
     msgs[GAME_OVER] = "Has perdido";
+    // TODO: "Score" translation is too lengthy for Spanish and Galician
     msgs[SCORE] = "Puntuación: ";
     for 0..I18N_TEXT_COUNT-1 {
         if msgs[it].count == 0 {
@@ -134,6 +137,8 @@ I18N_TABLES :: #run -> [I18N_LANG_COUNT]I18N_Table {
     tables[RU] = I18N_Russian;
     tables[UA] = I18N_Ukrainian;
     tables[HU] = I18N_Hungarian;
+    tables[ES] = I18N_Spanish;
+    tables[GL] = I18N_Galician;
     return tables;
 }
 
