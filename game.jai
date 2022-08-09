@@ -102,8 +102,7 @@ I18N_Spanish :: #run -> I18N_Table {
     msgs[PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND] = "Presione las flechas IZQUIERDA o DERECHA para moverte";
     msgs[PRESS_SPACE_TO_START] = "Presione ESPACIO para empezar";
     msgs[GAME_OVER] = "Has perdido";
-    // TODO: "Score" translation is too lengthy for Spanish and Galician
-    msgs[SCORE] = "Puntuación: ";
+    msgs[SCORE] = "Puntos: ";
     for 0..I18N_TEXT_COUNT-1 {
         if msgs[it].count == 0 {
             compiler_report(tprint("No está definida la traducción para el mensaje %\n", cast(I18N_Text) it));
@@ -120,7 +119,7 @@ I18N_Galician :: #run -> I18N_Table {
     msgs[PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND] = "Prema as frechas ESQUERDA ou DEREITA para moverche";
     msgs[PRESS_SPACE_TO_START] = "Prema ESPAZO para comezar";
     msgs[GAME_OVER] = "Perdiches";
-    msgs[SCORE] = "Puntuación: ";
+    msgs[SCORE] = "Puntos: ";
     for 0..I18N_TEXT_COUNT-1 {
         if msgs[it].count == 0 {
             compiler_report(tprint("Non está definida a traducción para a mesaxe %\n", cast(I18N_Text) it));
