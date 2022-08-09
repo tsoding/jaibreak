@@ -1,11 +1,88 @@
 #import "Basic";
 #import "Math";
+#import "Compiler";
 
-LANG : enum {
+lang := I18N_Lang.EN;
+
+I18N_Lang :: enum {
     EN;
     RU;
     UA;
-} : .EN;
+}
+I18N_LANG_COUNT :: #run enum_names(I18N_Lang).count;
+
+I18N_Text :: enum {
+    PRESS_SPACE_TO_RESTART;
+    PAUSE;
+    PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND;
+    PRESS_SPACE_TO_START;
+    GAME_OVER;
+    SCORE;
+}
+
+I18N_TEXT_COUNT :: #run enum_names(I18N_Text).count;
+I18N_Table :: [I18N_TEXT_COUNT]string;
+
+I18N_English :: #run -> I18N_Table {
+    msgs: I18N_Table;
+    using I18N_Text;
+    msgs[PRESS_SPACE_TO_RESTART] = "(press SPACE to restart)";
+    msgs[PAUSE] = "Pause";
+    msgs[PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND] = "Press arrows LEFT or RIGHT to move around";
+    msgs[PRESS_SPACE_TO_START] = "Press SPACE to start";
+    msgs[GAME_OVER] = "Game Over";
+    msgs[SCORE] = "Score: ";
+    for 0..I18N_TEXT_COUNT-1 {
+        if msgs[it].count == 0 {
+            compiler_report(tprint("No translation is set for message %\n", cast(I18N_Text) it));
+        }
+    }
+    return msgs;
+}
+
+I18N_Russian :: #run -> I18N_Table {
+    msgs: I18N_Table;
+    using I18N_Text;
+    msgs[PRESS_SPACE_TO_RESTART] = "(нажми ПРОБЕЛ, чтобы начать заново)";
+    msgs[PAUSE] = "Пауза";
+    msgs[PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND] = "Нажми стрелки ВЛЕВО или ВПРАВО чтобы двигаться";
+    msgs[PRESS_SPACE_TO_START] = "Нажми ПРОБЕЛ чтобы начать";
+    msgs[GAME_OVER] = "Конец Игры";
+    msgs[SCORE] = "Очки: ";
+    for 0..I18N_TEXT_COUNT-1 {
+        if msgs[it].count == 0 {
+            compiler_report(tprint("No translation is set for message %\n", cast(I18N_Text) it));
+        }
+    }
+    return msgs;
+}
+
+I18N_Ukrainian :: #run -> I18N_Table {
+    msgs: I18N_Table;
+    using I18N_Text;
+    msgs[PRESS_SPACE_TO_RESTART] = "(натисни ПРОБІЛ, щоб почати знову)";
+    msgs[PAUSE] = "Пауза";
+    msgs[PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND] = "Натисни стрілки ВЛІВО або ВПРАВО щоб рухатися";
+    msgs[PRESS_SPACE_TO_START] = "Натисни ПРОБІЛ щоб почати";
+    msgs[GAME_OVER] = "Кінець Гри";
+    msgs[SCORE] = "Очки: ";
+    for 0..I18N_TEXT_COUNT-1 {
+        if msgs[it].count == 0 {
+            compiler_report(tprint("No translation is set for message %\n", cast(I18N_Text) it));
+        }
+    }
+    return msgs;
+}
+
+I18N_TABLES :: #run -> [I18N_LANG_COUNT]I18N_Table {
+    tables: [I18N_LANG_COUNT]I18N_Table;
+    if I18N_LANG_COUNT != 3 then compiler_report("Not all translation tables are defined");
+    using I18N_Lang;
+    tables[EN] = I18N_English;
+    tables[RU] = I18N_Russian;
+    tables[UA] = I18N_Ukrainian;
+    return tables;
+}
 
 init :: () {
     allocate_targets();
@@ -30,6 +107,7 @@ update :: (dt: float) {
 key_press :: (key: u32) {
     if key == {
         case #char "Q"; #if DEBUG if state == .PLAY for *targets target_hit(it);
+        case #char "P"; lang = cast(I18N_Lang) ((lang + 1) % I18N_LANG_COUNT);
         case 130; #through;
         case #char "A"; {
             left = true;
@@ -121,13 +199,7 @@ update_game :: (dt: float) {
                 if primary_popup.state == .DISPLAY && curtain < 1 {
                     curtain += dt/GAMEOVER_FADEOUT_TIME;
                     if curtain >= 1 {
-                        #if LANG == .RU {
-                            popup_show(*secondary_popup, "(нажми ПРОБЕЛ, чтобы начать заново)");
-                        } else #if LANG == .UA {
-                            popup_show(*secondary_popup, "(натисни ПРОБІЛ, щоб почати знову)");
-                        } else {
-                            popup_show(*secondary_popup, "(press SPACE to restart)");
-                        }
+                        popup_show(*secondary_popup, I18N_Text.PRESS_SPACE_TO_RESTART);
                     }
                 }
             }
@@ -185,13 +257,7 @@ render_game :: () {
 
     text_height := cast(int)(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT);
     if pause {
-        #if LANG == .RU {
-            pause_text_width := prepare_text("Пауза");
-        } else #if LANG == .UA {
-            pause_text_width := prepare_text("Пауза");
-        } else {
-            pause_text_width := prepare_text("Pause");
-        }
+        pause_text_width := prepare_text(I18N_TABLES[lang][I18N_Text.PAUSE]);
         draw_prepared_text(WINDOW_WIDTH/2 - pause_text_width/2, WINDOW_HEIGHT/2 + text_height/4, TEXT_COLOR);
     }
 
@@ -209,7 +275,7 @@ Popup :: struct {
         DISPLAY;
         FADEOUT;
     };
-    text: string;
+    text: I18N_Text;
     a: float; // 0..1
 }
 
@@ -225,7 +291,7 @@ popup_render :: (using popup: *Popup, y: int) {
 
     color := TEXT_COLOR;
     color.w = alpha;
-    text_width := prepare_text(text);
+    text_width := prepare_text(I18N_TABLES[lang][text]);
     draw_prepared_text(WINDOW_WIDTH/2 - text_width/2, y, color);
 }
 
@@ -239,7 +305,7 @@ popup_update :: (using popup: *Popup, dt: float) {
     }
 }
 
-popup_show :: (popup: *Popup, text: string) {
+popup_show :: (popup: *Popup, text: I18N_Text) {
     popup.state = .HIDDEN;
     popup.text = text;
     popup.a = 0;
@@ -354,13 +420,7 @@ switch_to_start_state :: () {
     proj_position = life_position(lifes);
     proj_velocity = .{0, 0};
 
-    #if LANG == .RU {
-        popup_show(*primary_popup, "Нажми стрелки ВЛЕВО или ВПРАВО чтобы двигаться");
-    } else #if LANG == .UA {
-        popup_show(*primary_popup, "Натисни стрілки ВЛІВО або ВПРАВО щоб рухатися");
-    } else {
-        popup_show(*primary_popup, "Press arrows LEFT or RIGHT to move around");
-    }
+    popup_show(*primary_popup, I18N_Text.PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND);
     state = .START;
 }
 
@@ -373,27 +433,13 @@ switch_to_attach_state :: () {
 }
 
 switch_to_ready_state :: () {
-    if tutorial {
-        #if LANG == .RU {
-            popup_show(*primary_popup, "Нажми ПРОБЕЛ чтобы начать");
-        } else #if LANG == .UA {
-            popup_show(*primary_popup, "Натисни ПРОБІЛ щоб почати");
-        } else {
-            popup_show(*primary_popup, "Press SPACE to start");
-        }
-    }
+    if tutorial then popup_show(*primary_popup, I18N_Text.PRESS_SPACE_TO_START);
     state = .READY;
 }
 
 switch_to_game_over :: () {
     curtain = 0;
-    #if LANG == .RU {
-        popup_show(*primary_popup, "Конец Игры");
-    } else #if LANG == .UA {
-        popup_show(*primary_popup, "Кінець Гри");
-    } else {
-        popup_show(*primary_popup, "Game Over");
-    }
+    popup_show(*primary_popup, I18N_Text.GAME_OVER);
     state = .GAMEOVER;
 }
 
@@ -716,13 +762,7 @@ score_text :: (x: int) -> string {
     score_buffer.data = talloc(SCORE_BUFFER_CAP);
     score_buffer.count = SCORE_BUFFER_CAP;
 
-    #if LANG == .RU {
-        score_label :: "Очки: ";
-    } else #if LANG == .UA {
-        score_label :: "Очки: ";
-    } else {
-        score_label :: "Score: ";
-    }
+    score_label := I18N_TABLES[lang][I18N_Text.SCORE];
     memcpy(score_buffer.data, score_label.data, score_label.count);
     count := int_to_string(x, score_buffer.data + score_label.count);
 
