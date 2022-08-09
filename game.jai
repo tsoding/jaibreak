@@ -11,6 +11,7 @@ I18N_Lang :: enum {
     HU;
     ES;
     GL;
+    FR;
 }
 I18N_LANG_COUNT :: #run enum_names(I18N_Lang).count;
 
@@ -129,9 +130,26 @@ I18N_Galician :: #run -> I18N_Table {
     return msgs;
 }
 
+I18N_French :: #run -> I18N_Table {
+    msgs: I18N_Table;
+    using I18N_Text;
+    msgs[PRESS_SPACE_TO_RESTART] = "(Appuyez sur l'ESPACE pour recommencer)";
+    msgs[PAUSE] = "Pause";
+    msgs[PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND] = "Appuyez sur la flèche GAUCHE ou DROITE pour se mouvoir";
+    msgs[PRESS_SPACE_TO_START] = "Appuyez sur l'ESPACE pour commencer";
+    msgs[GAME_OVER] = "Jeu terminé";
+    msgs[SCORE] = "Score: ";
+    for 0..I18N_TEXT_COUNT-1 {
+        if msgs[it].count == 0 {
+            compiler_report(tprint("La traduction n'est pas définie pour le message %\n", cast(I18N_Text) it));
+        }
+    }
+    return msgs;
+}
+
 I18N_TABLES :: #run -> [I18N_LANG_COUNT]I18N_Table {
     tables: [I18N_LANG_COUNT]I18N_Table;
-    if I18N_LANG_COUNT != 6 then compiler_report("Not all translation tables are defined");
+    if I18N_LANG_COUNT != 7 then compiler_report("Not all translation tables are defined");
     using I18N_Lang;
     tables[EN] = I18N_English;
     tables[RU] = I18N_Russian;
@@ -139,6 +157,7 @@ I18N_TABLES :: #run -> [I18N_LANG_COUNT]I18N_Table {
     tables[HU] = I18N_Hungarian;
     tables[ES] = I18N_Spanish;
     tables[GL] = I18N_Galician;
+    tables[FR] = I18N_French;
     return tables;
 }
 
