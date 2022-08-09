@@ -92,6 +92,40 @@ I18N_Hungarian :: #run -> I18N_Table {
     return msgs;
 }
 
+I18N_Spanish :: #run -> I18N_Table {
+    msgs: I18N_Table;
+    using I18N_Text;
+    msgs[PRESS_SPACE_TO_RESTART] = "(presione ESPACIO para reiniciar)";
+    msgs[PAUSE] = "Pausa";
+    msgs[PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND] = "Presione las flechas IZQUIERDA o DERECHA para moverte";
+    msgs[PRESS_SPACE_TO_START] = "Presione ESPACIO para empezar";
+    msgs[GAME_OVER] = "Has perdido";
+    msgs[SCORE] = "Puntuación: ";
+    for 0..I18N_TEXT_COUNT-1 {
+        if msgs[it].count == 0 {
+            compiler_report(tprint("No está definida la traducción para el mensaje %\n", cast(I18N_Text) it));
+        }
+    }
+    return msgs;
+}
+
+I18N_Galician :: #run -> I18N_Table {
+    msgs: I18N_Table;
+    using I18N_Text;
+    msgs[PRESS_SPACE_TO_RESTART] = "(prema ESPAZO para reiniciar)";
+    msgs[PAUSE] = "Pausa";
+    msgs[PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND] = "Prema as frechas ESQUERDA ou DEREITA para moverche";
+    msgs[PRESS_SPACE_TO_START] = "Prema ESPAZO para comezar";
+    msgs[GAME_OVER] = "Perdiches";
+    msgs[SCORE] = "Puntuación: ";
+    for 0..I18N_TEXT_COUNT-1 {
+        if msgs[it].count == 0 {
+            compiler_report(tprint("Non está definida a traducción para a mesaxe %\n", cast(I18N_Text) it));
+        }
+    }
+    return msgs;
+}
+
 I18N_TABLES :: #run -> [I18N_LANG_COUNT]I18N_Table {
     tables: [I18N_LANG_COUNT]I18N_Table;
     if I18N_LANG_COUNT != 4 then compiler_report("Not all translation tables are defined");
