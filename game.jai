@@ -128,7 +128,7 @@ I18N_Galician :: #run -> I18N_Table {
 
 I18N_TABLES :: #run -> [I18N_LANG_COUNT]I18N_Table {
     tables: [I18N_LANG_COUNT]I18N_Table;
-    if I18N_LANG_COUNT != 4 then compiler_report("Not all translation tables are defined");
+    if I18N_LANG_COUNT != 6 then compiler_report("Not all translation tables are defined");
     using I18N_Lang;
     tables[EN] = I18N_English;
     tables[RU] = I18N_Russian;
