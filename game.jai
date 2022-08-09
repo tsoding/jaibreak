@@ -86,7 +86,7 @@ I18N_Hungarian :: #run -> I18N_Table {
     msgs[SCORE] = "Állás: ";
     for 0..I18N_TEXT_COUNT-1 {
         if msgs[it].count == 0 {
-            compiler_report(tprint("Nincs fordítás a(z) üzenethez %\n", cast(I18N_Text) it));
+            compiler_report(tprint("No translation is set for message %\n", cast(I18N_Text) it));
         }
     }
     return msgs;
