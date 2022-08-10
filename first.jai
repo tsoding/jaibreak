@@ -227,10 +227,12 @@ gen_i18n_static :: () -> string {
         file_path := tprint("i18n/%.conf", lang);
         i18n, ok := load_params_from_file(file_path);
         if !ok then compiler_report(tprint("Could not find translation for lang %", lang));
+        print_to_builder(*builder, "    // %\n", lang);
         print_to_builder(*builder, "    .[\n");
         for text: enum_names(I18N_Text) {
             // TODO: report error if the param is not string.
             value := get_param(i18n, string, text);
+            print_to_builder(*builder, "        // %\n", text);
             print_to_builder(*builder, "        \"%\",\n", value);
         }
         print_to_builder(*builder, "    ],\n");
