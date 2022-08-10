@@ -6,6 +6,7 @@
 #import "File";
 Simp :: #import "Simp";
 
+// TODO: the font on Simp platform does not support Japanese glyphs
 font: *Simp.Dynamic_Font;
 
 #if DEBUG {
