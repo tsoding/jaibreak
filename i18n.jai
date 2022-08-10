@@ -8,6 +8,7 @@ I18N_Lang :: enum {
     BY;
     FR;
     IT;
+    PH;
 }
 I18N_LANG_COUNT :: #run type_info(I18N_Lang).names.count;
 
