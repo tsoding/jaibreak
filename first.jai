@@ -4,7 +4,9 @@
 #import "Compiler";
 #import "BuildCpp";
 #import "Process";
+
 #load "params_loader.jai";
+#load "i18n.jai";
 
 PARAMS_CONF_FILEPATH :: "params.conf";
 
@@ -131,6 +133,9 @@ prepare_object_file_for_build_wasm :: (w: Workspace) -> string {
 }
 
 build_wasm_release :: (params: Params) {
+    params_string := gen_params_static(params);
+    i18n_string := gen_i18n_static();
+
     if OS != .LINUX {
         print("TODO: Build WASM platform is only support on Linux right now");
         return;
@@ -155,7 +160,9 @@ build_wasm_release :: (params: Params) {
 
     compiler_begin_intercept(w);
     add_build_string(tprint("DEBUG :: false;"), w);
-    add_build_string(gen_params_static(params), w);
+    add_build_string(params_string, w);
+    add_build_file("i18n.jai", w);
+    add_build_string(i18n_string, w);
     add_build_file("game.jai", w);
     add_build_file("wasm_platform.jai", w);
     object_file_to_translate_to_wasm := prepare_object_file_for_build_wasm(w);
@@ -169,6 +176,9 @@ build_wasm_release :: (params: Params) {
 }
 
 build_simp_release :: (params: Params) {
+    params_string := gen_params_static(params);
+    i18n_string := gen_i18n_static();
+
     w := compiler_create_workspace("Jaibreak Simp Release");
     if !w {
         print("ERROR: Workspace creation failed.\n");
@@ -180,13 +190,17 @@ build_simp_release :: (params: Params) {
     set_build_options(target_options, w);
 
     add_build_string(tprint("DEBUG :: false;"), w);
-
-    add_build_string(gen_params_static(params), w);
+    add_build_file("./i18n.jai", w);
+    add_build_string(i18n_string, w);
+    add_build_string(params_string, w);
     add_build_file("./game.jai", w);
     add_build_file("./simp_platform.jai", w);
 }
 
 build_simp_debug :: (params: Params) {
+    params_string := gen_params_dynamic(params);
+    i18n_string := gen_i18n_static();
+
     w := compiler_create_workspace("Jaibreak Simp Debug");
     if !w {
         print("ERROR: Workspace creation failed.\n");
@@ -199,10 +213,31 @@ build_simp_debug :: (params: Params) {
 
     add_build_string(tprint("DEBUG :: true;"), w);
     add_build_file("params_loader.jai", w);
-
-    add_build_string(gen_params_dynamic(params), w);
+    add_build_string(params_string, w);
+    add_build_file("i18n.jai", w);
+    add_build_string(i18n_string, w);
     add_build_file("./game.jai", w);
     add_build_file("./simp_platform.jai", w);
+}
+
+gen_i18n_static :: () -> string {
+    builder: String_Builder;
+    print_to_builder(*builder, "I18N_TABLES : [I18N_LANG_COUNT][I18N_TEXT_COUNT]string : .[\n");
+    for lang: enum_names(I18N_Lang) {
+        file_path := tprint("i18n/%.conf", lang);
+        i18n, ok := load_params_from_file(file_path);
+        if !ok then compiler_report(tprint("Could not find translation for lang %", lang));
+        print_to_builder(*builder, "    .[\n");
+        for text: enum_names(I18N_Text) {
+            // TODO: report error if the param is not string.
+            value := get_param(i18n, string, text);
+            print_to_builder(*builder, "        \"%\",\n", value);
+        }
+        print_to_builder(*builder, "    ],\n");
+    }
+    print_to_builder(*builder, "];\n");
+    result := builder_to_string(*builder);
+    return result;
 }
 
 #run {
