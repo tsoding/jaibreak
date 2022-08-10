@@ -10,7 +10,7 @@ PARAMS_CONF_FILEPATH :: "params.conf";
 PARAMS_DYNAMIC_FILEPATH :: "gen_params_dynamic.jai";
 PARAMS_STATIC_FILEPATH :: "gen_params_static.jai";
 
-gen_params_static :: () {
+gen_params_static :: (params: Params) {
     file, success := file_open(PARAMS_STATIC_FILEPATH, for_writing=true);
     if !success {
         print("Could not open file % for writing.\n", PARAMS_STATIC_FILEPATH);
@@ -19,7 +19,7 @@ gen_params_static :: () {
     defer file_close(*file);
     file_write(*file, tprint("// Generated from %\n", PARAMS_CONF_FILEPATH));
 
-    for value, name: params {
+    for value, name: params.table {
         if value.tag == {
             case int; file_write(*file, tprint("% : int : %;\n", name, <<(cast(*int) value.bytes.data)));
             case float; file_write(*file, tprint("% : float : %;\n", name, <<(cast(*float) value.bytes.data)));
@@ -33,7 +33,7 @@ gen_params_static :: () {
     }
 }
 
-gen_params_dynamic :: () {
+gen_params_dynamic :: (params: Params) {
     file, success := file_open(PARAMS_DYNAMIC_FILEPATH, for_writing=true);
     if !success {
         print("Could not open file % for writing.\n", PARAMS_DYNAMIC_FILEPATH);
@@ -41,7 +41,7 @@ gen_params_dynamic :: () {
     }
 
     file_write(*file, tprint("// Generated from %\n", PARAMS_CONF_FILEPATH));
-    for value, name: params {
+    for value, name: params.table {
         if value.tag == {
             case int;     file_write(*file, tprint("% : int = %;\n", name, <<(cast(*int) value.bytes.data)));
             case float;   file_write(*file, tprint("% : float = %;\n", name, <<(cast(*float) value.bytes.data)));
@@ -52,14 +52,15 @@ gen_params_dynamic :: () {
         }
     }
 
+    file_write(*file, "params: Params;\n");
     file_write(*file, "sync_param_vars :: () {\n");
-    file_write(*file, tprint("    if !load_params_from_file(\"%\") return;\n", PARAMS_CONF_FILEPATH));
-    for value, name: params {
+    file_write(*file, tprint("    if !reload_params_from_file(*params, \"%\") return;\n", PARAMS_CONF_FILEPATH));
+    for value, name: params.table {
         if value.tag == {
-            case int;     file_write(*file, tprint("    % = get_param(int, \"%\");\n", name, name));
-            case float;   file_write(*file, tprint("    % = get_param(float, \"%\");\n", name, name));
-            case Vector4; file_write(*file, tprint("    % = get_param(Vector4, \"%\");\n", name, name));
-            case string;  file_write(*file, tprint("    % = get_param(string, \"%\");\n", name, name));
+            case int;     file_write(*file, tprint("    % = get_param(params, int, \"%\");\n", name, name));
+            case float;   file_write(*file, tprint("    % = get_param(params, float, \"%\");\n", name, name));
+            case Vector4; file_write(*file, tprint("    % = get_param(params, Vector4, \"%\");\n", name, name));
+            case string;  file_write(*file, tprint("    % = get_param(params, string, \"%\");\n", name, name));
             case; assert(false, "unreachable");
         }
     }
@@ -219,18 +220,20 @@ build_debug :: () {
 }
 
 #run {
-    if !load_params_from_file(PARAMS_CONF_FILEPATH) {
-        exit(1);
+    params, ok := load_params_from_file(PARAMS_CONF_FILEPATH);
+    if !ok {
+        compiler_report(tprint("Could not parse param file %", PARAMS_CONF_FILEPATH));
     }
+    defer params_free(*params);
 
     // TODO: generate param code via add_build_string()
-    gen_params_static();
-    gen_params_dynamic();
+    gen_params_static(params);
+    gen_params_dynamic(params);
 
-    build_release();
+    /* build_release(); */
     build_debug();
     // TODO: document how to build WASM platform
-    build_wasm_platform();
+    /* build_wasm_platform(); */
 
     set_build_options_dc(.{do_output=false});
 }

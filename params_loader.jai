@@ -6,9 +6,16 @@ HT :: #import "Hash_Table";
 for_expansion :: HT.for_expansion;
 TU :: #import "Tagged_Union";
 
-params_content: string;
-UnionValue :: TU.Tagged_Union(int, float, Vector4, string); 
-params: HT.Table(string, UnionValue);
+Param_Value :: TU.Tagged_Union(int, float, Vector4, string); 
+Params :: struct {
+    content: string;
+    table: HT.Table(string, Param_Value);
+}
+
+params_free :: (params: *Params) {
+    free(params.content);
+    HT.uninit(*params.table);
+}
 
 parse_hex_digit :: (b: u8) -> u8, bool {
     if #char "0" <= b && b <= #char "9" return b - #char "0", true;
@@ -40,15 +47,15 @@ parse_hex_color :: (hex: string) -> Vector4, bool {
 }
 
 // TODO: implement dynamic params.conf reloading for WASM platform
-load_params_from_file :: (file_path: string) -> bool {
+reload_params_from_file :: (params: *Params, file_path: string) -> bool {
     content, ok := read_entire_file(file_path);
     if !ok {
         print("Error while opening parameters file % for reading\n", file_path);
         return false;
     }
-    free(params_content.data);
-    params_content = content;
-    HT.table_reset(*params);
+    free(params.content.data);
+    params.content = content;
+    HT.table_reset(*params.table);
 
     line_number := 0;
     while content.count > 0 {
@@ -77,7 +84,7 @@ load_params_from_file :: (file_path: string) -> bool {
         type = trim(type);
         value = trim(value);
         // TODO: make the program fail at compile time when you add a new type to params
-        tagged_x : UnionValue;
+        tagged_x : Param_Value;
         if type == {
             case "float"; {
                 x, success, _ := string_to_float(value);
@@ -122,16 +129,26 @@ load_params_from_file :: (file_path: string) -> bool {
             }
 
         }
-        HT.table_add(*params, name, tagged_x);
+        HT.table_add(*params.table, name, tagged_x);
     }
 
     return true;
 }
 
-get_param :: ($T: Type, name: string) -> T {
+load_params_from_file :: (file_path: string) -> Params, bool {
+    params: Params;
+    ok := reload_params_from_file(*params, file_path);
+    return params, ok;
+}
+
+cast_param_value :: (value: Param_Value, $T: Type) -> T {
     // TODO: make sure T is within supported types (the ones that are in the Tagged_Union list)
-    value, success := HT.table_find(*params, name);
-    if success return <<(cast(*T) value.bytes.data);
+    return <<(cast(*T) value.bytes.data);
+}
+
+get_param :: (params: Params, $T: Type, name: string) -> T {
+    value, success := HT.table_find(*params.table, name);
+    if success return cast_param_value(value, T);
     default: T;
     return default;
 }
