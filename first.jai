@@ -230,6 +230,7 @@ gen_i18n_static :: () -> string {
         print_to_builder(*builder, "    .[\n");
         for text: enum_names(I18N_Text) {
             // TODO: report error if the param is not string.
+            // TODO: handle the situation when certain translation text is not found
             value := get_param(i18n, string, text);
             print_to_builder(*builder, "        // %\n", text);
             print_to_builder(*builder, "        \"%\",\n", value);
