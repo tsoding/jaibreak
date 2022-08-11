@@ -32,7 +32,7 @@ You can also check an already deployed WebAssembly version here: [https://tsodin
 
 |keys|description|
 |---|---|
-|<kbd>A</kbd>/<kbd>D</kbd>|move bar left/right|
+|<kbd>A</kbd>/<kbd>D</kbd> or <kbd>←</kbd>/<kbd>→</kbd>|move bar left/right|
 |<kbd>ESC</kbd>|toggle pause|
 |<kbd>SPACE</kbd>|release the "ball"|
 
