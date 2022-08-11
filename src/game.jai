@@ -3,7 +3,7 @@
 #import "Compiler";
 
 lang := I18N_Lang.EN;
-RTL :: false;
+rtl := false;
 
 init :: () {
     allocate_targets();
@@ -28,6 +28,7 @@ update :: (dt: float) {
 key_press :: (key: u32) {
     if key == {
         case #char "Q"; #if DEBUG if state == .PLAY for *targets target_hit(it);
+        case #char "L"; rtl = !rtl;
         case #char "P"; lang = cast(I18N_Lang) ((lang + 1) % I18N_LANG_COUNT);
         case 130; #through;
         case #char "A"; {
@@ -88,6 +89,11 @@ update_game :: (dt: float) {
         update_particles(dt);
 
         if state == {
+            case .START; {
+                proj_velocity = .{0, 0};
+                proj_position = life_position(lifes);
+            }
+
             case .RESTART; {
                 if curtain > 0 {
                     curtain -= dt/POPUP_FADEOUT_TIME;
@@ -108,11 +114,12 @@ update_game :: (dt: float) {
             }
 
             case .ATTACH; {
-                if wait_for(dt, *attach_cooldown, ATTACH_COOLDOWN) {
-                    if attach_to(dt, *proj_position, *proj_velocity, bar_anchor(bar_x)) {
-                        particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
-                        switch_to_ready_state();
-                    }
+                if !wait_for(dt, *attach_cooldown, ATTACH_COOLDOWN) {
+                    proj_position = life_position(lifes);
+                    proj_velocity = .{0, 0};
+                } else if attach_to(dt, *proj_position, *proj_velocity, bar_anchor(bar_x)) {
+                    particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
+                    switch_to_ready_state();
                 }
             }
 
@@ -184,7 +191,7 @@ render_game :: () {
 
     #if DEBUG {
         debug_text_width := prepare_text("Debug");
-        #if RTL {
+        if rtl {
             draw_prepared_text(DEBUG_PADDING_RIGHT, DEBUG_PADDING_TOP + text_height, DEBUG_TEXT_COLOR);
         } else {
             draw_prepared_text(WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, DEBUG_PADDING_TOP + text_height, DEBUG_TEXT_COLOR);
@@ -342,18 +349,12 @@ some_dead_target :: () -> *Target {
 }
 
 switch_to_start_state :: () {
-    proj_position = life_position(lifes);
-    proj_velocity = .{0, 0};
-
     popup_show(*primary_popup, I18N_Text.PRESS_ARROWS_LEFT_OR_RIGHT_TO_MOVE_AROUND);
     state = .START;
 }
 
 switch_to_attach_state :: () {
-    proj_position = life_position(lifes);
-    proj_velocity = .{0, 0};
     attach_cooldown = 0;
-
     state = .ATTACH;
 }
 
@@ -617,13 +618,12 @@ bar_collision :: (dt: float, obstacle: Rect) {
 
 life_position :: (index: int) -> Vector2 {
     position : Vector2 = ---;
-    #if RTL {
+    if rtl {
         position.x = WINDOW_WIDTH - LIFES_PADDING_RIGHT - LIFE_SIZE - index*(LIFE_SIZE + LIFES_PADDING);
-        position.y = LIFES_PADDING_TOP;
     } else {
         position.x = LIFES_PADDING_RIGHT + index*(LIFE_SIZE + LIFES_PADDING);
-        position.y = LIFES_PADDING_TOP;
     }
+    position.y = LIFES_PADDING_TOP;
     return position;
 }
 
@@ -758,7 +758,7 @@ render_score :: () {
     /* score_text_width := prepare_text(tprint("Score: %", score)); */
     text_height := cast(int)(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT);
     score_text_width := prepare_text(score_text(score));
-    #if RTL {
+    if rtl {
         draw_prepared_text(WINDOW_WIDTH - SCORE_PADDING_LEFT - score_text_width, SCORE_PADDING_TOP + text_height, TEXT_COLOR);
     } else {
         draw_prepared_text(SCORE_PADDING_LEFT, SCORE_PADDING_TOP + text_height, TEXT_COLOR);
