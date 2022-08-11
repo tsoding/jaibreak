@@ -355,6 +355,8 @@ switch_to_start_state :: () {
 
 switch_to_attach_state :: () {
     attach_cooldown = 0;
+    proj_position = life_position(lifes);
+    proj_velocity = .{0, 0};
     state = .ATTACH;
 }
 
