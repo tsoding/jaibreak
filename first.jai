@@ -5,8 +5,8 @@
 #import "BuildCpp";
 #import "Process";
 
-#load "params_loader.jai";
-#load "i18n.jai";
+#load "./src/params_loader.jai";
+#load "./src/i18n.jai";
 
 PARAMS_CONF_FILEPATH :: "params.conf";
 
@@ -141,9 +141,8 @@ build_wasm_release :: (params: Params) {
         return;
     }
 
-    if !build_cpp_dynamic_lib("libwasmstub", "wasmstub.c") {
-        print("Error: Could not build dynamic lib with external names");
-        exit(1);
+    if !build_cpp_dynamic_lib("libwasmstub", "src/wasmstub.c") {
+        compiler_report("Could not build dynamic lib with external names for WASM");
     }
 
     w := compiler_create_workspace("Jaibreak WASM Release");
@@ -161,10 +160,10 @@ build_wasm_release :: (params: Params) {
     compiler_begin_intercept(w);
     add_build_string(tprint("DEBUG :: false;"), w);
     add_build_string(params_string, w);
-    add_build_file("i18n.jai", w);
+    add_build_file("./src/i18n.jai", w);
     add_build_string(i18n_string, w);
-    add_build_file("game.jai", w);
-    add_build_file("wasm_platform.jai", w);
+    add_build_file("./src/game.jai", w);
+    add_build_file("./src/wasm_platform.jai", w);
     object_file_to_translate_to_wasm := prepare_object_file_for_build_wasm(w);
     compiler_end_intercept(w);
 
@@ -190,11 +189,11 @@ build_simp_release :: (params: Params) {
     set_build_options(target_options, w);
 
     add_build_string(tprint("DEBUG :: false;"), w);
-    add_build_file("./i18n.jai", w);
+    add_build_file("./src/i18n.jai", w);
     add_build_string(i18n_string, w);
     add_build_string(params_string, w);
-    add_build_file("./game.jai", w);
-    add_build_file("./simp_platform.jai", w);
+    add_build_file("./src/game.jai", w);
+    add_build_file("./src/simp_platform.jai", w);
 }
 
 build_simp_debug :: (params: Params) {
@@ -212,12 +211,12 @@ build_simp_debug :: (params: Params) {
     set_build_options(target_options, w);
 
     add_build_string(tprint("DEBUG :: true;"), w);
-    add_build_file("params_loader.jai", w);
+    add_build_file("./src/params_loader.jai", w);
     add_build_string(params_string, w);
-    add_build_file("i18n.jai", w);
+    add_build_file("./src/i18n.jai", w);
     add_build_string(i18n_string, w);
-    add_build_file("./game.jai", w);
-    add_build_file("./simp_platform.jai", w);
+    add_build_file("./src/game.jai", w);
+    add_build_file("./src/simp_platform.jai", w);
 }
 
 gen_i18n_static :: () -> string {

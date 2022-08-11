@@ -10,7 +10,7 @@ draw_prepared_text :: (x: s64, y: s64, color: Vector4) {
     draw_prepared_text_wasm(x, y, color.x, color.y, color.z, color.w);
 }
 
-wasmstub :: #foreign_library "libwasmstub";
+wasmstub :: #foreign_library "../libwasmstub";
 
 random_get_zero_to_one :: () -> float #foreign wasmstub;
 random_get_within_range :: (x: float32, y: float32) -> float #foreign wasmstub;
