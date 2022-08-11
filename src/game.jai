@@ -3,6 +3,7 @@
 #import "Compiler";
 
 lang := I18N_Lang.EN;
+RTL :: false;
 
 init :: () {
     allocate_targets();
@@ -183,7 +184,11 @@ render_game :: () {
 
     #if DEBUG {
         debug_text_width := prepare_text("Debug");
-        draw_prepared_text(WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, DEBUG_PADDING_TOP + text_height, DEBUG_TEXT_COLOR);
+        #if RTL {
+            draw_prepared_text(DEBUG_PADDING_RIGHT, DEBUG_PADDING_TOP + text_height, DEBUG_TEXT_COLOR);
+        } else {
+            draw_prepared_text(WINDOW_WIDTH - DEBUG_PADDING_RIGHT - debug_text_width, DEBUG_PADDING_TOP + text_height, DEBUG_TEXT_COLOR);
+        }
     }
 }
 
@@ -612,8 +617,13 @@ bar_collision :: (dt: float, obstacle: Rect) {
 
 life_position :: (index: int) -> Vector2 {
     position : Vector2 = ---;
-    position.x = LIFES_PADDING_RIGHT + index*(LIFE_SIZE + LIFES_PADDING);
-    position.y = LIFES_PADDING_TOP;
+    #if RTL {
+        position.x = WINDOW_WIDTH - LIFES_PADDING_RIGHT - LIFE_SIZE - index*(LIFE_SIZE + LIFES_PADDING);
+        position.y = LIFES_PADDING_TOP;
+    } else {
+        position.x = LIFES_PADDING_RIGHT + index*(LIFE_SIZE + LIFES_PADDING);
+        position.y = LIFES_PADDING_TOP;
+    }
     return position;
 }
 
@@ -748,7 +758,11 @@ render_score :: () {
     /* score_text_width := prepare_text(tprint("Score: %", score)); */
     text_height := cast(int)(TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT);
     score_text_width := prepare_text(score_text(score));
-    draw_prepared_text(SCORE_PADDING_LEFT, SCORE_PADDING_TOP + text_height, TEXT_COLOR);
+    #if RTL {
+        draw_prepared_text(WINDOW_WIDTH - SCORE_PADDING_LEFT - score_text_width, SCORE_PADDING_TOP + text_height, TEXT_COLOR);
+    } else {
+        draw_prepared_text(SCORE_PADDING_LEFT, SCORE_PADDING_TOP + text_height, TEXT_COLOR);
+    }
 }
 
 render_curtain :: () {
