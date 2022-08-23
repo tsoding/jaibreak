@@ -6,9 +6,7 @@
 #import "File";
 Simp :: #import "Simp";
 
-// TODO: introduce logical size of the device (similar to SDL's one)
-TEXT_FONT_FILE_NAME :: "Alegreya-Regular.ttf";
-
+// TODO: the font on Simp platform does not support Japanese glyphs
 font: *Simp.Dynamic_Font;
 
 #if DEBUG {
@@ -81,39 +79,56 @@ font: *Simp.Dynamic_Font;
     }
 }
 
-fill_rect :: (using rect: Rect, color: Vector4) {
+actual_window_width: int;
+actual_window_height: int;
+actual_window_offset_x: int;
+actual_window_offset_y: int;
+
+// TODO: off camera culling for Simp platform
+fill_rect :: (rect: Rect, color: Vector4) {
     #if DEBUG {
         colored_rect : Colored_Rect = ---;
         colored_rect.rect = rect;
         colored_rect.color = color;
         array_add(*rect_buffer, colored_rect);
     }
+    using nrect := rect;
+    x = x/WINDOW_WIDTH*actual_window_width + actual_window_offset_x;
+    y = y/WINDOW_HEIGHT*actual_window_height + actual_window_offset_y;
+    w = w/WINDOW_WIDTH*actual_window_width;
+    h = h/WINDOW_HEIGHT*actual_window_height;
     Simp.set_shader_for_color(enable_blend = true);
-    Simp.immediate_quad(x, WINDOW_HEIGHT - y, x + w, WINDOW_HEIGHT - y - h, color);
+    Simp.immediate_quad(x, actual_window_height - y, x + w, actual_window_height - y - h, color);
 }
 
 prepare_text :: (text: string) -> (width: s64) {
-    return Simp.prepare_text(font, text);
+    return Simp.prepare_text(font, text) * WINDOW_WIDTH / actual_window_width;
 }
 
 draw_prepared_text :: (x: s64, y: s64, color := Vector4.{1, 1, 1, 1}) {
-    Simp.draw_prepared_text(font, x, y, color);
+    x = x*actual_window_width/WINDOW_WIDTH + actual_window_offset_x;
+    y = y*actual_window_height/WINDOW_HEIGHT + actual_window_offset_y;
+    Simp.draw_prepared_text(font, x, actual_window_height - y, color);
 }
 
 main :: () {
-    init_state();
+    init();
 
-    font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
+    window := create_window(window_name="Jaibreak", width=WINDOW_WIDTH, height=WINDOW_HEIGHT);
+    actual_window_width = WINDOW_WIDTH;
+    actual_window_height = WINDOW_HEIGHT;
+    actual_window_offset_x = 0;
+    actual_window_offset_y = 0;
+    Simp.set_render_target(window);
+
+    font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*actual_window_height));
     if !font {
         print("[ERROR] could not load font %\n", TEXT_FONT_FILE_NAME);
         exit(1);
     }
-    print("[INFO] loaded font %\n", TEXT_FONT_FILE_NAME);
-
-    window := create_window(window_name="Jaibreak", width=WINDOW_WIDTH, height=WINDOW_HEIGHT);
-    Simp.set_render_target(window);
 
     last_time := get_time();
+    quit := false;
     while !quit {
         now := get_time();
         delta : float64 = now - last_time;
@@ -122,11 +137,30 @@ main :: () {
 
         update_window_events();
 
-        KEY_A :: #run get_key_code(#char "a");
-        KEY_D :: #run get_key_code(#char "d");
-        KEY_SPACE :: #run get_key_code(#char " ");
+        for get_window_resizes() {
+            Simp.update_window(it.window);
+            if it.window == window {
+                actual_window_width  = it.width;
+                actual_window_height = it.width*WINDOW_HEIGHT/WINDOW_WIDTH;
+                if actual_window_height > it.height {
+                    actual_window_width  = it.height*WINDOW_WIDTH/WINDOW_HEIGHT;
+                    actual_window_height = it.height;
+                    actual_window_offset_x = (it.width - actual_window_width)/2;
+                    actual_window_offset_y = 0;
+                } else {
+                    actual_window_offset_x = 0;
+                    actual_window_offset_y = -(it.height - actual_window_height)/2;
+                }
 
-        // TODO: use key_press() and key_release() in the SIMP platform
+                Simp.release_font(font);
+                font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*actual_window_height));
+                if !font {
+                    print("[ERROR] could not reload font %\n", TEXT_FONT_FILE_NAME);
+                    exit(1);
+                }
+            }
+        }
+
         for event : events_this_frame {
             if event.type == {
                 case .QUIT; {
@@ -135,30 +169,28 @@ main :: () {
                 }
 
                 case .KEYBOARD; if input_application_has_focus {
-                    if event.key_code == {
-                        case .ARROW_LEFT; #through; case KEY_A; left  = event.key_pressed != 0;
-                        case .ARROW_RIGHT; #through; case KEY_D; right = event.key_pressed != 0;
-                        case KEY_SPACE; if !pause && state == .READY && event.key_pressed {
-                            state = .PLAY;
-                            proj_dy = -PROJ_SPEED;
-                            proj_dx = PROJ_SPEED*ANGLE_FACTOR;
-                            if left  then proj_dx = -PROJ_SPEED;
-                            if right then proj_dx = PROJ_SPEED;
-                        }
-                        case .ESCAPE; if event.key_pressed then pause = !pause;
-                        case .F5; #if DEBUG {
-                            if event.key_pressed {
+                    #if DEBUG {
+                        if event.key_code == {
+                            case .F5; if event.key_pressed {
                                 sync_param_vars();
                                 Simp.release_font(font);
-                                font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*WINDOW_HEIGHT));
+                                font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*actual_window_height));
+                                if !font {
+                                    print("[ERROR] could not reload font %\n", TEXT_FONT_FILE_NAME);
+                                    exit(1);
+                                }
                             }
-                        }
 
-                        case .F3; #if DEBUG {
-                            if event.key_pressed {
+                            case .F3; if event.key_pressed {
                                 save_rect_buffer_as_svg();
                             }
                         }
+                    }
+
+                    if event.key_pressed {
+                        key_press(cast(u32) event.key_code);
+                    } else {
+                        key_release(cast(u32) event.key_code);
                     }
                 }
             }

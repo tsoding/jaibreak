@@ -1,6 +1,5 @@
 jaibreak-*
 .build
-gen_*.jai
 *.so
 *.wasm
 !main32.wasm

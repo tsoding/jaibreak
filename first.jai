@@ -4,62 +4,57 @@
 #import "Compiler";
 #import "BuildCpp";
 #import "Process";
-#load "params_loader.jai";
+
+#load "./src/params_loader.jai";
+#load "./src/i18n.jai";
 
 PARAMS_CONF_FILEPATH :: "params.conf";
-PARAMS_DYNAMIC_FILEPATH :: "gen_params_dynamic.jai";
-PARAMS_STATIC_FILEPATH :: "gen_params_static.jai";
 
-gen_params_static :: () {
-    file, success := file_open(PARAMS_STATIC_FILEPATH, for_writing=true);
-    if !success {
-        print("Could not open file % for writing.\n", PARAMS_STATIC_FILEPATH);
-        return;
-    }
-    defer file_close(*file);
-    file_write(*file, tprint("// Generated from %\n", PARAMS_CONF_FILEPATH));
-
-    for value, name: params {
+gen_params_static :: (params: Params) -> string {
+    builder: String_Builder;
+    for value, name: params.table {
         if value.tag == {
-            case int; file_write(*file, tprint("% : int : %;\n", name, <<(cast(*int) value.bytes.data)));
-            case float; file_write(*file, tprint("% : float : %;\n", name, <<(cast(*float) value.bytes.data)));
+            case int; print_to_builder(*builder, "% : int : %;\n", name, <<(cast(*int) value.bytes.data));
+            case float; print_to_builder(*builder, "% : float : %;\n", name, <<(cast(*float) value.bytes.data));
             // TODO: maybe the printer function (or whatever it is called in Jai, I don't actually know)
             // of Vector4 should put that dot in front of the literal?
-            case Vector4; file_write(*file, tprint("% : Vector4 : .%;\n", name, <<(cast(*Vector4) value.bytes.data)));
+            case Vector4; print_to_builder(*builder, "% : Vector4 : .%;\n", name, <<(cast(*Vector4) value.bytes.data));
+            // TODO: implement escaping of the string literals when serializing them
+            case string; print_to_builder(*builder, "% : string : \"%\";\n", name, <<(cast(*string) value.bytes.data));
             case; assert(false, "unreachable");
         }
     }
+    return builder_to_string(*builder);
 }
 
-gen_params_dynamic :: () {
-    file, success := file_open(PARAMS_DYNAMIC_FILEPATH, for_writing=true);
-    if !success {
-        print("Could not open file % for writing.\n", PARAMS_DYNAMIC_FILEPATH);
-        return;
-    }
+gen_params_dynamic :: (params: Params) -> string {
+    builder: String_Builder;
 
-    file_write(*file, tprint("// Generated from %\n", PARAMS_CONF_FILEPATH));
-    for value, name: params {
+    for value, name: params.table {
         if value.tag == {
-            case int;     file_write(*file, tprint("% : int = %;\n", name, <<(cast(*int) value.bytes.data)));
-            case float;   file_write(*file, tprint("% : float = %;\n", name, <<(cast(*float) value.bytes.data)));
-            case Vector4; file_write(*file, tprint("% : Vector4 = .%;\n", name, <<(cast(*Vector4) value.bytes.data)));
+            case int;     print_to_builder(*builder, "% : int = %;\n", name, <<(cast(*int) value.bytes.data));
+            case float;   print_to_builder(*builder, "% : float = %;\n", name, <<(cast(*float) value.bytes.data));
+            case Vector4; print_to_builder(*builder, "% : Vector4 = .%;\n", name, <<(cast(*Vector4) value.bytes.data));
+            // TODO: implement escaping of the string literals when serializing them
+            case string;  print_to_builder(*builder, "% : string = \"%\";\n", name, <<(cast(*string) value.bytes.data));
             case; assert(false, "unreachable");
         }
     }
 
-    file_write(*file, "sync_param_vars :: () {\n");
-    file_write(*file, tprint("    if !load_params_from_file(\"%\") return;\n", PARAMS_CONF_FILEPATH));
-    for value, name: params {
+    print_to_builder(*builder, "params: Params;\n");
+    print_to_builder(*builder, "sync_param_vars :: () {\n");
+    print_to_builder(*builder, "    if !reload_params_from_file(*params, \"%\") return;\n", PARAMS_CONF_FILEPATH);
+    for value, name: params.table {
         if value.tag == {
-            case int;     file_write(*file, tprint("    % = get_param(int, \"%\");\n", name, name));
-            case float;   file_write(*file, tprint("    % = get_param(float, \"%\");\n", name, name));
-            case Vector4; file_write(*file, tprint("    % = get_param(Vector4, \"%\");\n", name, name));
+            case int;     print_to_builder(*builder, "    % = get_param(params, int, \"%\");\n", name, name);
+            case float;   print_to_builder(*builder, "    % = get_param(params, float, \"%\");\n", name, name);
+            case Vector4; print_to_builder(*builder, "    % = get_param(params, Vector4, \"%\");\n", name, name);
+            case string;  print_to_builder(*builder, "    % = get_param(params, string, \"%\");\n", name, name);
             case; assert(false, "unreachable");
         }
     }
-    file_write(*file, "}\n");
-    file_close(*file);
+    print_to_builder(*builder, "}\n");
+    return builder_to_string(*builder);
 }
 
 build_wasm :: (base_name: string) {
@@ -136,18 +131,21 @@ prepare_object_file_for_build_wasm :: (w: Workspace) -> string {
 
     return object_file_to_translate_to_wasm;
 }
-build_wasm_platform :: () {
+
+build_wasm_release :: (params: Params) {
+    params_string := gen_params_static(params);
+    i18n_string := gen_i18n_static();
+
     if OS != .LINUX {
         print("TODO: Build WASM platform is only support on Linux right now");
         return;
     }
 
-    if !build_cpp_dynamic_lib("libwasmstub", "wasmstub.c") {
-        print("Error: Could not build dynamic lib with external names");
-        exit(1);
+    if !build_cpp_dynamic_lib("libwasmstub", "src/wasmstub.c") {
+        compiler_report("Could not build dynamic lib with external names for WASM");
     }
 
-    w := compiler_create_workspace("Jaibreak WASM");
+    w := compiler_create_workspace("Jaibreak WASM Release");
     if !w {
         print("Error: Could not create a workspace\n");
         exit(1);
@@ -160,11 +158,12 @@ build_wasm_platform :: () {
     set_build_options(bo, w);
 
     compiler_begin_intercept(w);
-    gen_params_static();
     add_build_string(tprint("DEBUG :: false;"), w);
-    add_build_file("gen_params_static.jai", w);
-    add_build_file("game.jai", w);
-    add_build_file("wasm_platform.jai", w);
+    add_build_string(params_string, w);
+    add_build_file("./src/i18n.jai", w);
+    add_build_string(i18n_string, w);
+    add_build_file("./src/game.jai", w);
+    add_build_file("./src/wasm_platform.jai", w);
     object_file_to_translate_to_wasm := prepare_object_file_for_build_wasm(w);
     compiler_end_intercept(w);
 
@@ -175,8 +174,11 @@ build_wasm_platform :: () {
     }
 }
 
-build_release :: () {
-    w := compiler_create_workspace("JaiBreak Release");
+build_simp_release :: (params: Params) {
+    params_string := gen_params_static(params);
+    i18n_string := gen_i18n_static();
+
+    w := compiler_create_workspace("Jaibreak Simp Release");
     if !w {
         print("ERROR: Workspace creation failed.\n");
         return;
@@ -187,16 +189,18 @@ build_release :: () {
     set_build_options(target_options, w);
 
     add_build_string(tprint("DEBUG :: false;"), w);
-
-    gen_params_static();
-
-    add_build_file(PARAMS_STATIC_FILEPATH, w);
-    add_build_file("./game.jai", w);
-    add_build_file("./simp_platform.jai", w);
+    add_build_file("./src/i18n.jai", w);
+    add_build_string(i18n_string, w);
+    add_build_string(params_string, w);
+    add_build_file("./src/game.jai", w);
+    add_build_file("./src/simp_platform.jai", w);
 }
 
-build_debug :: () {
-    w := compiler_create_workspace("JaiBreak Debug");
+build_simp_debug :: (params: Params) {
+    params_string := gen_params_dynamic(params);
+    i18n_string := gen_i18n_static();
+
+    w := compiler_create_workspace("Jaibreak Simp Debug");
     if !w {
         print("ERROR: Workspace creation failed.\n");
         return;
@@ -207,24 +211,46 @@ build_debug :: () {
     set_build_options(target_options, w);
 
     add_build_string(tprint("DEBUG :: true;"), w);
-    add_build_file("params_loader.jai", w);
+    add_build_file("./src/params_loader.jai", w);
+    add_build_string(params_string, w);
+    add_build_file("./src/i18n.jai", w);
+    add_build_string(i18n_string, w);
+    add_build_file("./src/game.jai", w);
+    add_build_file("./src/simp_platform.jai", w);
+}
 
-    gen_params_dynamic();
-
-    add_build_file(PARAMS_DYNAMIC_FILEPATH, w);
-    add_build_file("./game.jai", w);
-    add_build_file("./simp_platform.jai", w);
+gen_i18n_static :: () -> string {
+    builder: String_Builder;
+    print_to_builder(*builder, "I18N_TABLES : [I18N_LANG_COUNT][I18N_TEXT_COUNT]string : .[\n");
+    for lang: enum_names(I18N_Lang) {
+        file_path := tprint("i18n/%.conf", lang);
+        i18n, ok := load_params_from_file(file_path);
+        if !ok then compiler_report(tprint("Could not find translation for lang %", lang));
+        print_to_builder(*builder, "    // %\n", lang);
+        print_to_builder(*builder, "    .[\n");
+        for text: enum_names(I18N_Text) {
+            // TODO: report error if the param is not string.
+            // TODO: handle the situation when certain translation text is not found
+            value := get_param(i18n, string, text);
+            print_to_builder(*builder, "        // %\n", text);
+            print_to_builder(*builder, "        \"%\",\n", value);
+        }
+        print_to_builder(*builder, "    ],\n");
+    }
+    print_to_builder(*builder, "];\n");
+    result := builder_to_string(*builder);
+    return result;
 }
 
 #run {
-    if !load_params_from_file(PARAMS_CONF_FILEPATH) {
-        exit(1);
-    }
+    params, ok := load_params_from_file(PARAMS_CONF_FILEPATH);
+    if !ok then compiler_report(tprint("Could not parse param file %", PARAMS_CONF_FILEPATH));
+    defer params_free(*params);
 
-    build_release();
-    build_debug();
+    build_simp_release(params);
+    build_simp_debug(params);
     // TODO: document how to build WASM platform
-    build_wasm_platform();
+    build_wasm_release(params);
 
     set_build_options_dc(.{do_output=false});
 }

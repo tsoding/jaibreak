@@ -6,9 +6,16 @@ HT :: #import "Hash_Table";
 for_expansion :: HT.for_expansion;
 TU :: #import "Tagged_Union";
 
-// TODO: get rid of global data in params_loader
-params_content: string;
-params: HT.Table(string, TU.Tagged_Union(int, float, Vector4));
+Param_Value :: TU.Tagged_Union(int, float, Vector4, string); 
+Params :: struct {
+    content: string;
+    table: HT.Table(string, Param_Value);
+}
+
+params_free :: (params: *Params) {
+    free(params.content);
+    HT.uninit(*params.table);
+}
 
 parse_hex_digit :: (b: u8) -> u8, bool {
     if #char "0" <= b && b <= #char "9" return b - #char "0", true;
@@ -40,15 +47,15 @@ parse_hex_color :: (hex: string) -> Vector4, bool {
 }
 
 // TODO: implement dynamic params.conf reloading for WASM platform
-load_params_from_file :: (file_path: string) -> bool {
+reload_params_from_file :: (params: *Params, file_path: string) -> bool {
     content, ok := read_entire_file(file_path);
     if !ok {
         print("Error while opening parameters file % for reading\n", file_path);
         return false;
     }
-    free(params_content.data);
-    params_content = content;
-    HT.table_reset(*params);
+    free(params.content.data);
+    params.content = content;
+    HT.table_reset(*params.table);
 
     line_number := 0;
     while content.count > 0 {
@@ -63,26 +70,26 @@ load_params_from_file :: (file_path: string) -> bool {
 
         found_name, name, rest_line := split_from_left(line, #char ":");
         if !found_name {
-            print("%:%: could not find parameter name\n", file_path, line_number);
+            print("%:%: ERROR: could not find parameter name\n", file_path, line_number);
             continue;
         }
         name = trim(name);
 
         found_type, type, value := split_from_left(rest_line, #char "=");
         if !found_type {
-            print("%:%: could not find parameter type\n", file_path, line_number);
+            print("%:%: ERROR: could not find parameter type\n", file_path, line_number);
             continue;
         }
 
         type = trim(type);
         value = trim(value);
         // TODO: make the program fail at compile time when you add a new type to params
-        tagged_x : TU.Tagged_Union(int, float, Vector4);
+        tagged_x : Param_Value;
         if type == {
             case "float"; {
                 x, success, _ := string_to_float(value);
                 if !success {
-                    print("%:%: could not parse float value\n", file_path, line_number);
+                    print("%:%: ERROR: could not parse float value\n", file_path, line_number);
                     continue;
                 }
                 TU.set(*tagged_x, x);
@@ -91,7 +98,7 @@ load_params_from_file :: (file_path: string) -> bool {
             case "int"; {
                 x, success, _ := string_to_int(value);
                 if !success {
-                    print("%:%: could not parse int value\n", file_path, line_number);
+                    print("%:%: ERROR: could not parse int value\n", file_path, line_number);
                     continue;
                 }
                 TU.set(*tagged_x, x);
@@ -100,28 +107,48 @@ load_params_from_file :: (file_path: string) -> bool {
             case "color"; {
                 color, success := parse_hex_color(value);
                 if !success {
-                    print("%:%: could not parse color value\n", file_path, line_number);
+                    print("%:%: ERROR: could not parse color value\n", file_path, line_number);
                     continue;
                 }
                 TU.set(*tagged_x, color);
             }
 
+            case "string"; {
+                // TODO: the string literals do not support any form of escaping
+                // I'm not sure if they should, tbh.
+                if (value.count < 2 || value[0] != #char "\"" || value[value.count - 1] != #char "\"") {
+                    print("%:%: ERROR: string must be surrounded by double quotes `\"`\n", file_path, line_number);
+                    continue;
+                }
+                TU.set(*tagged_x, slice(value, 1, value.count - 2));
+            }
+
             case; {
-                print("%:%: unknown type `%`\n", file_path, line_number, type);
+                print("%:%: ERROR: unknown type `%`\n", file_path, line_number, type);
                 continue;
             }
 
         }
-        HT.table_add(*params, name, tagged_x);
+        HT.table_add(*params.table, name, tagged_x);
     }
 
     return true;
 }
 
-get_param :: ($T: Type, name: string) -> T {
+load_params_from_file :: (file_path: string) -> Params, bool {
+    params: Params;
+    ok := reload_params_from_file(*params, file_path);
+    return params, ok;
+}
+
+cast_param_value :: (value: Param_Value, $T: Type) -> T {
     // TODO: make sure T is within supported types (the ones that are in the Tagged_Union list)
-    value, success := HT.table_find(*params, name);
-    if success return <<(cast(*T) value.bytes.data);
+    return <<(cast(*T) value.bytes.data);
+}
+
+get_param :: (params: Params, $T: Type, name: string) -> T {
+    value, success := HT.table_find(*params.table, name);
+    if success return cast_param_value(value, T);
     default: T;
     return default;
 }
