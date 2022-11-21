@@ -1,6 +1,6 @@
 # JaiBreak
 
-[![thumbnail](./img/thumbnail.png)](https://tsoding.org/jaibreak)
+[![thumbnail](./img/thumbnail.png)](https://tsoding.github.io/jaibreak)
 
 ## Quick Start
 
@@ -26,7 +26,7 @@ $ python3 -m http.server 6969
 $ iexplore.exe http://localhost:6969/
 ```
 
-You can also check an already deployed WebAssembly version here: [https://tsoding.org/jaibreak](https://tsoding.org/jaibreak).
+You can also check an already deployed WebAssembly version here: [https://tsoding.github.io/jaibreak](https://tsoding.github.io/jaibreak).
 
 ## Controls
 
