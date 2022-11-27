@@ -6,6 +6,20 @@
           font-family: 'Alegreya-Regular';
           src: url('fonts/Alegreya-Regular.ttf') format('truetype');
       }
+
+      @media all and (orientation:portrait) {
+        #app{
+          width: calc(100vw - 2rem);
+          aspect-ratio: 1600/900;
+        }
+      }
+      @media all and (orientation:landscape) {
+        #app{
+          height: calc(100vh - 2rem);
+          aspect-ratio: 1600/900;
+        }
+      }
+      
     </style>
   </head>
   <body>
