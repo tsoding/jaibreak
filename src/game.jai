@@ -2,14 +2,16 @@
 #import "Math";
 #import "Compiler";
 #import "Srgb";
+#import "Random";
 
 lang := I18N_Lang.EN;
 rtl := false;
+PROJ_SPEED: float = 400.0;
 
 init :: () {
     allocate_targets();
     center_bar();
-    lifes = 3;
+    lives = 3;
 
     // TODO: save the fact that the player already passed the tutorial
     tutorial = true;
@@ -84,88 +86,90 @@ attach_to :: (dt: float, position: *Vector2, velocity: *Vector2, destination : V
 }
 
 update_game :: (dt: float) {
-    if !pause {
-        update_bar(dt);
-        update_both_popups(dt);
-        update_particles(dt);
+    if pause {
+		return;
+	}
 
-        if state == {
-            case .START; {
-                proj_velocity = .{0, 0};
-                proj_position = life_position(lifes);
-            }
+	update_bar(dt);
+	update_both_popups(dt);
+	update_particles(dt);
 
-            case .RESTART; {
-                if curtain > 0 {
-                    curtain -= dt/POPUP_FADEOUT_TIME;
-                } else {
-                    curtain = 0;
-                    switch_to_attach_state();
-                }
-            }
+	if state == {
+		case .START; {
+			proj_velocity = .{0, 0};
+			proj_position = life_position(lives);
+		}
 
-            case .READY; {
-                proj_velocity = .{0, 0};
-                proj_position = bar_anchor(bar_x);
-            }
+		case .RESTART; {
+			if curtain > 0 {
+				curtain -= dt/POPUP_FADEOUT_TIME;
+			} else {
+				curtain = 0;
+				switch_to_attach_state();
+			}
+		}
 
-            case .PLAY; {
-                handle_proj_collision(horz_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
-                handle_proj_collision(vert_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
-            }
+		case .READY; {
+			proj_velocity = .{0, 0};
+			proj_position = bar_anchor(bar_x);
+		}
 
-            case .ATTACH; {
-                if !wait_for(dt, *attach_cooldown, ATTACH_COOLDOWN) {
-                    proj_position = life_position(lifes);
-                    proj_velocity = .{0, 0};
-                } else if attach_to(dt, *proj_position, *proj_velocity, bar_anchor(bar_x)) {
-                    particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
-                    switch_to_ready_state();
-                }
-            }
+		case .PLAY; {
+			handle_proj_collision(horz_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
+			handle_proj_collision(vert_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
+		}
 
-            case .GAMEOVER; {
-                if primary_popup.state == .DISPLAY && curtain < 1 {
-                    curtain += dt/GAMEOVER_FADEOUT_TIME;
-                    if curtain >= 1 {
-                        popup_show(*secondary_popup, I18N_Text.PRESS_SPACE_TO_RESTART);
-                    }
-                }
-            }
+		case .ATTACH; {
+			if !wait_for(dt, *attach_cooldown, ATTACH_COOLDOWN) {
+				proj_position = life_position(lives);
+				proj_velocity = .{0, 0};
+			} else if attach_to(dt, *proj_position, *proj_velocity, bar_anchor(bar_x)) {
+				particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
+				switch_to_ready_state();
+			}
+		}
 
-            case .VICTORY; {
-                if wait_for(dt, *victory_cooldown, VICTORY_COOLDOWN) {
-                    if attach_to(dt, *proj_position, *proj_velocity, life_position(lifes)) {
-                        if fallen_balls.count > 0 {
-                            lifes += 1;
-                            fallen_balls.count -= 1;
-                            proj_position = fallen_balls.data[fallen_balls.count];
-                            proj_velocity = .{0, 0};
-                            particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_HIT_COUNT);
-                        } else {
-                            switch_to_restore_targets();
-                        }
-                    }
-                }
-            }
+		case .GAMEOVER; {
+			if primary_popup.state == .DISPLAY && curtain < 1 {
+				curtain += dt/GAMEOVER_FADEOUT_TIME;
+				if curtain >= 1 {
+					popup_show(*secondary_popup, I18N_Text.PRESS_SPACE_TO_RESTART);
+				}
+			}
+		}
 
-            case .RESTORE_TARGETS; {
-                finished := true;
-                for *targets {
-                    if it.dead {
-                        finished = false;
-                        if it.waiting > 0 {
-                            it.waiting -= dt;
-                        } else if attach_to(dt, *it.position, *it.velocity, it.destination) {
-                            it.position = it.destination;
-                            it.dead = false;
-                        }
-                    }
-                }
-                if finished then switch_to_attach_state();
-            }
-        }
-    }
+		case .VICTORY; {
+			if wait_for(dt, *victory_cooldown, VICTORY_COOLDOWN) {
+				if attach_to(dt, *proj_position, *proj_velocity, life_position(lives)) {
+					if fallen_balls.count > 0 {
+						lives += 1;
+						fallen_balls.count -= 1;
+						proj_position = fallen_balls.data[fallen_balls.count];
+						proj_velocity = .{0, 0};
+						particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_HIT_COUNT);
+					} else {
+						switch_to_restore_targets();
+					}
+				}
+			}
+		}
+
+		case .RESTORE_TARGETS; {
+			finished := true;
+			for *targets {
+				if it.dead {
+					finished = false;
+					if it.waiting > 0 {
+						it.waiting -= dt;
+					} else if attach_to(dt, *it.position, *it.velocity, it.destination) {
+						it.position = it.destination;
+						it.dead = false;
+					}
+				}
+			}
+			if finished then switch_to_attach_state();
+		}
+	}
 }
 
 render_game :: () {
@@ -178,8 +182,8 @@ render_game :: () {
         render_bar();
     }
 
-    // TODO: make the score and lifes semi-transparent when the projectile cross them
-    render_lifes();
+    // TODO: make the score and lives semi-transparent when the projectile cross them
+    render_lives();
     render_score();
     render_curtain();
     render_both_popups();
@@ -306,7 +310,7 @@ State_Kind :: enum {
     READY;
     // Just the usual game play until the ball hits the bottom
     PLAY;
-    // Ran out of lifes before destroying all the targets
+    // Ran out of lives before destroying all the targets
     GAMEOVER;
     // Start the whole game from scratch
     RESTART;
@@ -327,7 +331,7 @@ proj_position: Vector2;
 proj_velocity: Vector2;
 score: int;
 bonus_score: int;
-lifes: int;
+lives: int;
 
 // Intermediate values for transitions and stuff
 state: State_Kind;
@@ -356,7 +360,7 @@ switch_to_start_state :: () {
 
 switch_to_attach_state :: () {
     attach_cooldown = 0;
-    proj_position = life_position(lifes);
+    proj_position = life_position(lives);
     proj_velocity = .{0, 0};
     state = .ATTACH;
 }
@@ -385,7 +389,7 @@ switch_to_restore_targets :: () {
         it.velocity = .{0, 0};
         it.waiting = TARGETS_RESTORE_DELAY*it_index;
     }
-    proj_position = life_position(lifes);
+    proj_position = life_position(lives);
     state = .RESTORE_TARGETS;
 }
 
@@ -394,6 +398,10 @@ switch_to_play_state :: () {
         popup_dispose(*primary_popup);
         tutorial = false;
     }
+
+	// ANGLE_FACTOR = Not calculated?
+	// The angle out again should be based on where it hits the platform
+
     // TODO: direct angle factored projectile based on the last direction
     proj_velocity.x = PROJ_SPEED*ANGLE_FACTOR;
     proj_velocity.y = -PROJ_SPEED;
@@ -408,8 +416,8 @@ switch_to_restart_state :: () {
 
     center_bar();
     score = 0;
-    lifes = 3;
-    proj_position = life_position(lifes);
+    lives = 3;
+    proj_position = life_position(lives);
     proj_velocity = .{0, 0};
     for *targets it.dead = false;
     array_reset_keeping_memory(*fallen_balls);
@@ -543,9 +551,18 @@ all_targets_dead :: () -> bool {
 }
 
 target_hit :: (target: *Target) {
-    if target.dead return;
+    if target.dead {
+		print("Target already dead\n");
+		return;
+	}
+
+	PROJ_SPEED = PROJ_SPEED + 10.0;
+
     particle_burst(target_rect(target), target.color, PARTICLE_BURST_HIT_COUNT + bonus_score*2);
+
+	// The target itself is an object..?
     target.dead = true;
+
     // TODO: indicate how much score points you've got by showing a fading sign with the number at the point of the impact
     score += 1 + bonus_score;
     bonus_score += 1;
@@ -615,7 +632,10 @@ vert_collision :: (position: *Vector2, velocity: *Vector2, size: Vector2, dt: fl
 
 bar_collision :: (dt: float, obstacle: Rect) {
     bar_nx := clamp(bar_x + bar_dx*BAR_SPEED*dt, 0, WINDOW_WIDTH - BAR_LEN);
-    if overlaps(obstacle, bar_rect(bar_nx)) return;
+    if overlaps(obstacle, bar_rect(bar_nx)) {
+		return;
+	}
+
     bar_x = bar_nx;
 }
 
@@ -626,6 +646,7 @@ life_position :: (index: int) -> Vector2 {
     } else {
         position.x = LIFES_PADDING_RIGHT + index*(LIFE_SIZE + LIFES_PADDING);
     }
+
     position.y = LIFES_PADDING_TOP;
     return position;
 }
@@ -634,29 +655,51 @@ handle_proj_collision :: (c: Collision) {
     if c == {
         case .BAR; {
             bonus_score = 0;
+
+			// Calculate where it hit the bar.
+			// 1. Find the position of the bar
+			// 2. Find the position of the ball
+			// 3. Calculate where on the bar the ball hit
+
+			// Bar pos = 0->1500?
+			// Length of bar = 100 (BAR_LEN) 
+			// Get percentage of bar hit (0-100)
+			// 0 = left, 100 = right
+			positionHit := (proj_position.x - bar_x) / BAR_LEN;
+			angle := positionHit * 800 - 400;
+			proj_velocity.x = angle;
+
+			/*
             particle_burst(proj_rect(proj_position), BAR_COLOR, PARTICLE_BURST_HIT_COUNT);
+
             if bar_dx != 0 {
                 proj_velocity.x = bar_dx*PROJ_SPEED;
             } else {
                 sign :: inline (x: float) -> float {
                     return xx (-cast(int)(x<0) + cast(int)(x>0));
                 }
+
+				// Calculate based on where on the bar 
+				// it hits (X) 
+
                 proj_velocity.x = sign(proj_velocity.x)*PROJ_SPEED*ANGLE_FACTOR;
             }
-
+			*/
         }
 
         case .BORDER_BOTTOM; {
+			/*
             array_add(*fallen_balls, proj_position);
             bonus_score = 0;
             particle_burst(proj_rect(proj_position), PROJ_COLOR, PARTICLE_BURST_DEATH_COUNT);
-            if lifes > 0 {
-                lifes = max(lifes - 1, 0);
+            if lives > 0 {
+                lives = max(lives - 1, 0);
                 switch_to_attach_state();
             } else {
                 particle_burst(bar_rect(bar_x), BAR_COLOR, PARTICLE_BURST_DEATH_COUNT);
                 switch_to_game_over();
             }
+			*/
         }
 
         case; if c >= .TARGET {
@@ -669,7 +712,6 @@ update_both_popups :: (dt: float) {
     popup_update(*primary_popup, dt);
     popup_update(*secondary_popup, dt);
 }
-
 
 int_to_string :: (x: int, data: *u8) -> int {
     assert(x >= 0);
@@ -749,8 +791,8 @@ render_bar :: () {
     fill_rect(bar_rect(bar_x), BAR_COLOR);
 }
 
-render_lifes :: () {
-    for i: 0..lifes-1 {
+render_lives :: () {
+    for i: 0..lives-1 {
         position := life_position(i);
         fill_rect(make_rect(position.x, position.y, LIFE_SIZE, LIFE_SIZE), LIFE_COLOR);
     }

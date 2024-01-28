@@ -114,7 +114,7 @@ draw_prepared_text :: (x: s64, y: s64, color := Vector4.{1, 1, 1, 1}) {
 main :: () {
     init();
 
-    window := create_window(window_name="Jaibreak", width=WINDOW_WIDTH, height=WINDOW_HEIGHT);
+    window := create_window(window_name="Jaibreak - MacOS edit", width=WINDOW_WIDTH, height=WINDOW_HEIGHT);
     actual_window_width = WINDOW_WIDTH;
     actual_window_height = WINDOW_HEIGHT;
     actual_window_offset_x = 0;
@@ -127,9 +127,12 @@ main :: () {
         exit(1);
     }
 
-    //last_time := get_time();
     last_time := seconds_since_init();
     quit := false;
+
+	print("Starting game loop\n");
+
+	// Game loop
     while !quit {
         //now := get_time();
     	now := seconds_since_init();
@@ -139,6 +142,7 @@ main :: () {
 
         update_window_events();
 
+		// Window resizing
         for get_window_resizes() {
             Simp.update_window(it.window);
             if it.window == window {
@@ -164,43 +168,47 @@ main :: () {
         }
 
         for event : events_this_frame {
-            if event.type == {
-                case .QUIT; {
-                    quit = true;
-                    break;
-                }
-
-                case .KEYBOARD; if input_application_has_focus {
-                    #if DEBUG {
-                        if event.key_code == {
-                            case .F5; if event.key_pressed {
-                                sync_param_vars();
-                                Simp.release_font(font);
-                                font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*actual_window_height));
-                                if !font {
-                                    print("[ERROR] could not reload font %\n", TEXT_FONT_FILE_NAME);
-                                    exit(1);
-                                }
-                            }
-
-                            case .F3; if event.key_pressed {
-                                save_rect_buffer_as_svg();
-                            }
-                        }
-                    }
-
-                    if event.key_pressed {
-                        key_press(cast(u32) event.key_code);
-                    } else {
-                        key_release(cast(u32) event.key_code);
-                    }
-                }
+			//print("Event: %\n", event);
+            if event.type == .QUIT {
+                //case .QUIT; {
+				quit = true;
+				break;
             }
+
+            if event.type == .KEYBOARD && input_application_has_focus {
+				#if DEBUG {
+					if event.key_code == {
+						case .F5; if event.key_pressed {
+							sync_param_vars();
+							Simp.release_font(font);
+							font = Simp.get_font_at_size("fonts", TEXT_FONT_FILE_NAME, xx (TEXT_PIXEL_HEIGHT_FACTOR*actual_window_height));
+							if !font {
+								print("[ERROR] could not reload font %\n", TEXT_FONT_FILE_NAME);
+								exit(1);
+							}
+						}
+
+						case .F3; if event.key_pressed {
+							save_rect_buffer_as_svg();
+						}
+					}
+				}
+
+				if event.key_pressed {
+					key_press(cast(u32) event.key_code);
+				} else {
+					key_release(cast(u32) event.key_code);
+				}
+			}
         }
 
         #if DEBUG then clear_rect_buffer();
         Simp.clear_render_target(0, 0, 0, 0);
+
+		// Runs the game loop itself
+		// Key press = first so that the player decides what to do before the game updates
         update(current_dt);
+
         Simp.swap_buffers(window);
     }
 }
