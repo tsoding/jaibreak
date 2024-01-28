@@ -2,9 +2,10 @@
 #import "String";
 #import "Math";
 #import "File";
-HT :: #import "Hash_Table";
 for_expansion :: HT.for_expansion;
 TU :: #import "Tagged_Union";
+
+HT :: #import "Hash_Table";
 
 Param_Value :: TU.Tagged_Union(int, float, Vector4, string); 
 Params :: struct {
@@ -14,7 +15,7 @@ Params :: struct {
 
 params_free :: (params: *Params) {
     free(params.content);
-    HT.uninit(*params.table);
+    HT.deinit(*params.table);
 }
 
 parse_hex_digit :: (b: u8) -> u8, bool {

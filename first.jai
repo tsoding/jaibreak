@@ -137,7 +137,7 @@ build_wasm_release :: (params: Params) {
     i18n_string := gen_i18n_static();
 
     if OS != .LINUX {
-        print("TODO: Build WASM platform is only support on Linux right now");
+        print("TODO: Build WASM platform is only support on Linux right now\n");
         return;
     }
 
