@@ -1,6 +1,7 @@
 #import "Basic";
 #import "Math";
 #import "Compiler";
+#import "Srgb";
 
 lang := I18N_Lang.EN;
 rtl := false;
