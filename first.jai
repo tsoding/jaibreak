@@ -57,7 +57,7 @@ gen_params_dynamic :: (params: Params) -> string {
     return builder_to_string(*builder);
 }
 
-build_wasm :: (base_name: string) {
+wasm64232 :: (input_path: string, output_path: string) {
     cmd :: (args: .. string, redirect_stdout_to_file := "", loc := #caller_location) {
         log("[CMD] %\n", get_quoted_command_string(args));
 
@@ -72,64 +72,8 @@ build_wasm :: (base_name: string) {
         if redirect_stdout_to_file then write_entire_file(redirect_stdout_to_file, output_string);
     }
 
-    CLANG := "clang";
-    WASMLD := "wasm-ld";
     WASM64232 := "./3rd_party/wasm64232";
-
-    BC_NAME := tprint("%.bc", base_name);
-    O_NAME := tprint("%.o", base_name);
-
-    cmd(CLANG, "--target=wasm64", "-o", O_NAME, "-c", BC_NAME);
-    cmd(WASMLD, "-m", "wasm64", "--no-entry", "--export-all", "--allow-undefined", O_NAME, "-o", "./wasm/main64.wasm");
-    cmd(WASM64232, "./wasm/main64.wasm", "-o", "./wasm/main32.wasm");
-}
-
-prepare_object_file_for_build_wasm :: (w: Workspace) -> string {
-    object_file_to_translate_to_wasm := "";
-    while true {
-        message := compiler_wait_for_message();
-        if !message break;
-
-        if message.kind == {
-            case .TYPECHECKED; {
-                typechecked := cast(*Message_Typechecked) message;
-                for typechecked.procedure_bodies {
-                    contains_asm := false;
-                    for it.subexpressions {
-                        if it.kind == .ASM {
-                            // NOTE: #asm blocks are not translatable to WASM, we need to remove them
-                            compiler_report("ASM DETECTED!!!", make_location(it), .WARNING);
-                            contains_asm = true;
-                        }
-                    }
-                    if contains_asm {
-                        body := it.expression;
-                        // TODO: delete only the ASM blocks
-                        // I'm just too lazy to write such a surgically precise code right now, sorry
-                        compiler_report(tprint("Removing the whole body of the function %. DON'T USE IT!!!", body.header.name),
-                                        make_location(body),
-                                        .WARNING);
-                        new_statements : [..] *Code_Node;
-                        body.block.statements = new_statements;
-                        compiler_modify_procedure(w, body);
-                    }
-                }
-            }
-
-            case .PHASE; {
-                phase := cast(*Message_Phase) message;
-                if phase.phase == .POST_WRITE_EXECUTABLE {
-                    assert(phase.compiler_generated_object_files.count == 1, "The build process supports only a single object file compilation");
-                    assert(object_file_to_translate_to_wasm.count == 0, "The build process supports only a single object file compilation");
-                    object_file_to_translate_to_wasm = phase.compiler_generated_object_files[0];
-                }
-            }
-
-            case .COMPLETE; break;
-        }
-    }
-
-    return object_file_to_translate_to_wasm;
+    cmd(WASM64232, input_path, "-o", output_path);
 }
 
 build_wasm_release :: (params: Params) {
@@ -141,10 +85,6 @@ build_wasm_release :: (params: Params) {
         return;
     }
 
-    if !build_cpp_dynamic_lib("libwasmstub", "src/wasmstub.c") {
-        compiler_report("Could not build dynamic lib with external names for WASM");
-    }
-
     w := compiler_create_workspace("Jaibreak WASM Release");
     if !w {
         print("Error: Could not create a workspace\n");
@@ -152,26 +92,38 @@ build_wasm_release :: (params: Params) {
     }
 
     bo := get_build_options(w);
-    bo.output_executable_name            = "jaibreak-wasm";
-    bo.llvm_options.output_bitcode       = true;
-    bo.llvm_options.enable_split_modules = false;
+    copy_commonly_propagated_fields(get_build_options(), *bo);
+    bo.output_type                         = .EXECUTABLE;
+    bo.backend                             = .LLVM; // WASM only works with the LLVM backend, obviously.
+    bo.os_target                           = .WASM;
+    bo.cpu_target                          = .CUSTOM;
+    bo.emit_debug_info                     = .DWARF;
+    bo.backtrace_on_crash                  = .OFF; // Runtime_Support_Crash_Handler doesn’t support WASM (yet?)
+    bo.output_path                         = "./wasm/";
+    bo.output_executable_name              = "main64";
+    bo.llvm_options.target_system_features = "+bulk-memory"; // "This options is needed so that "memcpy" and "memset" are mapped to "memory.copy" and "memory.fill" instructions in WASM.
+    bo.llvm_options.enable_split_modules   = false;
+    bo.llvm_options.function_sections      = true; // To get around "LLVM ERROR: section already has a defining function: .text
+    bo.additional_linker_arguments         = .["--export-table", "--export-all"];
+
+    import_paths: [..]string;
+    // Add our own modules folder first so that we can override modules with our own version, if necessary.
+    array_add(*import_paths, tprint("%modules", #filepath));
+    for bo.import_path array_add(*import_paths, it);
+    bo.import_path = import_paths;
+
     set_build_options(bo, w);
 
-    compiler_begin_intercept(w);
+    remap_import(w, "*", "Default_Allocator", "Urmomocator");
+
     add_build_string(tprint("DEBUG :: false;"), w);
     add_build_string(params_string, w);
     add_build_file("./src/i18n.jai", w);
     add_build_string(i18n_string, w);
     add_build_file("./src/game.jai", w);
     add_build_file("./src/wasm_platform.jai", w);
-    object_file_to_translate_to_wasm := prepare_object_file_for_build_wasm(w);
-    compiler_end_intercept(w);
 
-    if object_file_to_translate_to_wasm.count > 0 {
-        build_wasm(path_strip_extension(object_file_to_translate_to_wasm));
-    } else {
-        print("Could not generate the object file. Skipping WASM translation step...\n");
-    }
+    // wasm64232()
 }
 
 build_simp_release :: (params: Params) {
@@ -247,10 +199,10 @@ gen_i18n_static :: () -> string {
     if !ok then compiler_report(tprint("Could not parse param file %", PARAMS_CONF_FILEPATH));
     defer params_free(*params);
 
-    build_simp_release(params);
-    build_simp_debug(params);
+    // build_simp_release(params);
+    // build_simp_debug(params);
     // TODO: document how to build WASM platform
-    // build_wasm_release(params);
+    build_wasm_release(params);
 
     set_build_options_dc(.{do_output=false});
 }

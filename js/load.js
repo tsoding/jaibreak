@@ -8,7 +8,7 @@ let ctx = app.getContext("2d");
 ctx.font = '37px Alegreya-Regular';
 
 let w = null;              // the WASM module
-let context = null;        // the Jai context (the one that contains the allocator, logger, etc)
+let context = 0n;        // the Jai context (the one that contains the allocator, logger, etc)
 let output_buffer = "";    // buffer for write() "syscalls"
 let prepared_text = null;  // prepared text for rendering by Simp
 
@@ -98,6 +98,9 @@ const game = {
     "draw_prepared_text_wasm": (x, y, r, g, b, a) => {
         ctx.fillStyle = hexcolor(r, g, b, a);
         ctx.fillText(prepared_text, Number(x), Number(y));
+    },
+    "get_heap_base": () => {
+        return w.instance.exports.__heap_base.value;
     }
 };
 
@@ -113,16 +116,15 @@ function hexcolor(r, g, b, a) {
     return '#'+r+g+b+a;
 }
 
-WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
+WebAssembly.instantiateStreaming(fetch('./wasm/main64.wasm'), {
     "env": make_environment(std, game)
 }).then(w0 => {
     w = w0;
     const update      = find_name_by_regexp(w.instance.exports, "update");
     const key_press   = find_name_by_regexp(w.instance.exports, "key_press");
     const key_release = find_name_by_regexp(w.instance.exports, "key_release");
-    const set_heap_base = find_name_by_regexp(w.instance.exports, "set_heap_base");
+    console.log(w.instance);
 
-    set_heap_base(w.instance.exports.__heap_base.value);
     w.instance.exports.main(
         0,     // argc
         NULL64 // argv
