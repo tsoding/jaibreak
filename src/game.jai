@@ -1,6 +1,7 @@
 #import "Basic";
 #import "Math";
 #import "Compiler";
+#import "Srgb";
 
 lang := I18N_Lang.EN;
 rtl := false;
@@ -109,8 +110,8 @@ update_game :: (dt: float) {
             }
 
             case .PLAY; {
-                handle_proj_collision(horz_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
-                handle_proj_collision(vert_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE, PROJ_SIZE), dt));
+                handle_proj_collision(horz_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE), dt));
+                handle_proj_collision(vert_collision(*proj_position, *proj_velocity, make_vector2(PROJ_SIZE), dt));
             }
 
             case .ATTACH; {
@@ -287,7 +288,7 @@ update_bar :: (dt: float) {
 update_particles :: (dt: float) {
     for * particles {
         if it.lifetime > 0 {
-            size := it.size_factor*make_vector2(PARTICLE_BASE_SIZE, PARTICLE_BASE_SIZE);
+            size := it.size_factor*make_vector2(PARTICLE_BASE_SIZE);
             ignore_bar := state == .GAMEOVER;
             horz_collision(*it.position, *it.velocity, size, dt, ignore_bar);
             vert_collision(*it.position, *it.velocity, size, dt, ignore_bar);
@@ -432,7 +433,7 @@ particle_emit :: (position: Vector2, color: Vector4) {
             angle := random_get_zero_to_one()*2*PI;
             t := random_get_within_range(0.5, 1.5);
             it.position = position;
-            it.velocity = make_vector2(cos(angle), sin(angle))*PARTICLE_BASE_VELOCITY*t;
+            it.velocity = .{cos(angle), sin(angle)}*PARTICLE_BASE_VELOCITY*t;
             it.size_factor = random_get_within_range(0.5, 1.5);
             it.color = color;
             it.lifetime = PARTICLE_LIFETIME;
@@ -452,9 +453,9 @@ allocate_targets :: () {
             target.position.y = xx (TARGET_GRID_Y + (TARGET_HEIGHT + TARGET_PADDING_Y)*row);
             target.dead       = false;
 
-            red   := srgb_to_linear(make_vector4(1, .18, .18, 1));
-            green := srgb_to_linear(make_vector4(.18, 1, .18, 1));
-            blue  := srgb_to_linear(make_vector4(.18, .18, 1, 1));
+            red   := srgb_to_linear(.{1, .18, .18, 1});
+            green := srgb_to_linear(.{.18, 1, .18, 1});
+            blue  := srgb_to_linear(.{.18, .18, 1, 1});
             level := .5;
             t     := cast(float) row/TARGET_ROWS;
             c     := cast(float) (t < level);
@@ -496,7 +497,7 @@ target_rect :: (using target: Target) -> Rect {
 }
 
 rect_center :: (using rect: Rect) -> Vector2 {
-    return make_vector2(x + w/2, y + h/2);
+    return .{x + w/2, y + h/2};
 }
 
 proj_center :: () -> Vector2 {
@@ -514,7 +515,7 @@ proj_rect :: (x: float, y: float) -> Rect {
 bar_anchor :: (x: float) -> Vector2 {
     anchor_x := x + BAR_LEN/2 - PROJ_SIZE/2;
     anchor_y := (WINDOW_HEIGHT - PROJ_SIZE - BAR_PADDING_Y_BOTTOM) - BAR_THICCNESS/2 - PROJ_SIZE - 1.0;
-    return make_vector2(anchor_x, anchor_y);
+    return .{anchor_x, anchor_y};
 }
 
 bar_rect :: (x: float) -> Rect {
@@ -724,7 +725,7 @@ render_background :: () {
 render_particles :: () {
     for particles {
         if it.lifetime > 0 {
-            size := make_vector2(PARTICLE_BASE_SIZE, PARTICLE_BASE_SIZE)*it.size_factor;
+            size := .{PARTICLE_BASE_SIZE, PARTICLE_BASE_SIZE}*it.size_factor;
             color := it.color;
             color.w = it.lifetime/PARTICLE_LIFETIME;
             fill_rect(make_rect(it.position, size), color);

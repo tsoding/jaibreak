@@ -14,7 +14,7 @@ Params :: struct {
 
 params_free :: (params: *Params) {
     free(params.content);
-    HT.uninit(*params.table);
+    HT.deinit(*params.table);
 }
 
 parse_hex_digit :: (b: u8) -> u8, bool {

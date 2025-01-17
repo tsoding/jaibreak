@@ -250,7 +250,7 @@ gen_i18n_static :: () -> string {
     build_simp_release(params);
     build_simp_debug(params);
     // TODO: document how to build WASM platform
-    build_wasm_release(params);
+    // build_wasm_release(params);
 
     set_build_options_dc(.{do_output=false});
 }

@@ -10,7 +10,7 @@ draw_prepared_text :: (x: s64, y: s64, color: Vector4) {
     draw_prepared_text_wasm(x, y, color.x, color.y, color.z, color.w);
 }
 
-wasmstub :: #foreign_library "../libwasmstub";
+wasmstub :: #library "../libwasmstub";
 
 random_get_zero_to_one :: () -> float #foreign wasmstub;
 random_get_within_range :: (x: float32, y: float32) -> float #foreign wasmstub;
@@ -23,7 +23,7 @@ fill_rect :: (rect: Rect, color: Vector4) {
                    color.x, color.y, color.z, color.w);
 }
 
-set_context :: (c: *Context) #foreign wasmstub;
+set_context :: (c: *#Context) #foreign wasmstub;
 
 __heap_base : *void = null;
 heap_size := 0;

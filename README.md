@@ -6,7 +6,7 @@
 
 ```console
 $ jai -version
-Version: beta 0.1.033, built on 21 July 2022.
+Version: beta 0.2.008, built on 14 January 2025.
 ```
 
 ### Native Build

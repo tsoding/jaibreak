@@ -127,10 +127,10 @@ main :: () {
         exit(1);
     }
 
-    last_time := get_time();
+    last_time := seconds_since_init();
     quit := false;
     while !quit {
-        now := get_time();
+        now := seconds_since_init();
         delta : float64 = now - last_time;
         current_dt := cast(float) delta;
         last_time = now;
