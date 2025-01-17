@@ -81,7 +81,8 @@ build_wasm_release :: (params: Params) {
     i18n_string := gen_i18n_static();
 
     if OS != .LINUX {
-        print("TODO: Build WASM platform is only support on Linux right now");
+        print("TODO: Build WASM platform is only support on Linux right now.");
+        // ^ the above mainly boils down to providing wasm64232 binary for the correspoding platform
         return;
     }
 
@@ -123,7 +124,7 @@ build_wasm_release :: (params: Params) {
     add_build_file("./src/game.jai", w);
     add_build_file("./src/wasm_platform.jai", w);
 
-    // wasm64232()
+    wasm64232("./wasm/main64.wasm", "./wasm/main32.wasm");
 }
 
 build_simp_release :: (params: Params) {
@@ -199,9 +200,8 @@ gen_i18n_static :: () -> string {
     if !ok then compiler_report(tprint("Could not parse param file %", PARAMS_CONF_FILEPATH));
     defer params_free(*params);
 
-    // build_simp_release(params);
-    // build_simp_debug(params);
-    // TODO: document how to build WASM platform
+    build_simp_release(params);
+    build_simp_debug(params);
     build_wasm_release(params);
 
     set_build_options_dc(.{do_output=false});

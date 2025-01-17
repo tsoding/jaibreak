@@ -1,8 +1,8 @@
 jaibreak-*
 .build
 *.so
-*.wasm
-!main32.wasm
+#*.wasm
+#!main32.wasm
 *.wat
 *.svg
 *.swp
