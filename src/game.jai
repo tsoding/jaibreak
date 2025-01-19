@@ -689,12 +689,11 @@ int_to_string :: (x: int, data: *u8) -> int {
     return count;
 }
 
-score_text :: (x: int) -> string {
-    SCORE_BUFFER_CAP :: 64;
-    score_buffer : [SCORE_BUFFER_CAP]u8;
-    // score_buffer.data = talloc(SCORE_BUFFER_CAP);
-    // score_buffer.count = SCORE_BUFFER_CAP;
+SCORE_BUFFER_CAP :: 64;
+score_buffer : [SCORE_BUFFER_CAP]u8;
 
+score_text :: (x: int) -> string {
+    // TODO: using string builders here
     score_label := I18N_TABLES[lang][I18N_Text.SCORE];
     memcpy(score_buffer.data, score_label.data, score_label.count);
     count := int_to_string(x, score_buffer.data + score_label.count);
