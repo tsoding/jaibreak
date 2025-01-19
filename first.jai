@@ -117,14 +117,24 @@ build_wasm_release :: (params: Params) {
 
     remap_import(w, "*", "Default_Allocator", "Urmomocator");
 
+    compiler_begin_intercept(w);
     add_build_string(tprint("DEBUG :: false;"), w);
     add_build_string(params_string, w);
     add_build_file("./src/i18n.jai", w);
     add_build_string(i18n_string, w);
     add_build_file("./src/game.jai", w);
     add_build_file("./src/wasm_platform.jai", w);
+    compile_wait_until_complete(w);
+    compiler_end_intercept(w);
 
     wasm64232("./wasm/main64.wasm", "./wasm/main32.wasm");
+}
+
+compile_wait_until_complete :: (w: Workspace) {
+    message := compiler_wait_for_message();
+    while message && message.kind != .COMPLETE {
+        message = compiler_wait_for_message();
+    }
 }
 
 build_simp_release :: (params: Params) {
