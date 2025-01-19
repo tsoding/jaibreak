@@ -116,6 +116,7 @@ function hexcolor(r, g, b, a) {
     return '#'+r+g+b+a;
 }
 
+// TODO: some sort of an indication that the page is loading
 WebAssembly.instantiateStreaming(fetch('./wasm/main32.wasm'), {
     "env": make_environment(std, game)
 }).then(w0 => {
