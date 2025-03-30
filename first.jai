@@ -1,3 +1,5 @@
+DO_WASM64232 :: true;
+
 #import "Basic";
 #import "File";
 #import "String";
@@ -127,7 +129,7 @@ build_wasm_release :: (params: Params) {
     compile_wait_until_complete(w);
     compiler_end_intercept(w);
 
-    wasm64232("./wasm/main64.wasm", "./wasm/main32.wasm");
+    if DO_WASM64232 then wasm64232("./wasm/main64.wasm", "./wasm/main32.wasm");
 }
 
 compile_wait_until_complete :: (w: Workspace) {
